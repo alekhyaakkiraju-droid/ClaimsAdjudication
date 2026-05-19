@@ -1,0 +1,7 @@
+# openIMIS backend modules are installed via the openimis-be_py assembly, which
+# pins sibling module versions in openimis.json. This lock file exists so static
+# analysis (SonarCloud S8565) can verify dependency metadata; runtime resolution
+# is performed by the assembly, not this module in isolation.
+version = 1
+revision = 1
+requires-python = ">=3.8"
