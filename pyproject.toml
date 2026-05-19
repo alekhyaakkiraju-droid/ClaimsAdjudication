@@ -53,3 +53,8 @@ include = ["claim*"]
 
 [tool.setuptools.data-files]
 "locale/en/LC_MESSAGES" = ["locale/en/LC_MESSAGES/django.po"]
+
+# SonarCloud: library module — deps are pinned by openimis-be_py, not a local lock file.
+[tool.sonar]
+sources = "claim"
+exclusions = "pyproject.toml,**/migrations/**,**/static/**,**/media/**,**/tests/**"

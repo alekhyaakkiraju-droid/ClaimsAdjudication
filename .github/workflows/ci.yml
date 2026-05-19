@@ -26,5 +26,5 @@ jobs:
       SONAR_PROJECT_NAME: openimis-be-claim_py
       SONAR_PROJECT_VERSION: 1.0
       SONAR_SOURCES: claim
-      SONAR_EXCLUSIONS: "**/migrations/**,**/static/**,**/media/**,**/tests/**"
+      SONAR_EXCLUSIONS: "pyproject.toml,**/migrations/**,**/static/**,**/media/**,**/tests/**"
 

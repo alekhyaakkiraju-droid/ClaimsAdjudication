@@ -20,6 +20,7 @@ from medical_pricelist.test_helpers import (
     add_service_to_hf_pricelist,
     add_item_to_hf_pricelist,
 )
+from django.db import IntegrityError, transaction
 from insuree.test_helpers import create_test_insuree
 from policy.test_helpers import create_test_policy2
 from insuree.models import Insuree
@@ -49,7 +50,14 @@ def create_test_claim(custom_props=None, user=DummyUser(), product=None):
         insuree = Insuree.objects.filter(id=custom_props["insuree_id"]).first()
         insuree_in_props = True
     else:
-        insuree = create_test_insuree()
+        try:
+            with transaction.atomic():
+                insuree = create_test_insuree()
+        except IntegrityError:
+            # Reference data (e.g. Gender) may already exist when the full suite runs.
+            insuree = Insuree.objects.filter(validity_to__isnull=True).order_by("-id").first()
+            if insuree is None:
+                raise
         custom_props["insuree"] = insuree
 
     if not insuree_in_props and not product:
