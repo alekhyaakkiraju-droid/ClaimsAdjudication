@@ -1,5 +1,5 @@
-# This workflows will upload a Python Package using Twine when a release is created
-# For more information see: https://help.github.com/en/actions/language-and-framework-guides/using-python-with-github-actions#publishing-to-package-registries
+# Upload a Python package using Twine when a release is created.
+# Version is taken from the release tag via VERSION (no setup.py sed).
 
 name: Upload Python Package
 
@@ -9,30 +9,28 @@ on:
 
 jobs:
   deploy:
-
     runs-on: ubuntu-latest
 
     steps:
-    - uses: olegtarasov/get-tag@v2.1
-      id: tagName
-    - uses: actions/checkout@v2
-    - name: Set up Python
-      uses: actions/setup-python@v2
-      with:
-        python-version: '3.x'
-    - name: Install dependencies
-      run: |
-        python -m pip install --upgrade pip
-        pip install setuptools wheel twine jq
-        
-    - name: update setup.py
-      run: |
-        echo "tag to use $GIT_TAG_NAME"
-        sed -i "s/version='.*'/version='$GIT_TAG_NAME'/g" setup.py
-    - name: Build and publish
-      env:
-        TWINE_USERNAME: __token__
-        TWINE_PASSWORD: ${{secrets.PYPI_TOKEN}}
-      run: |
-        python setup.py sdist bdist_wheel
-        twine upload dist/*
+      - uses: olegtarasov/get-tag@v2.1
+        id: tagName
+      - uses: actions/checkout@v4
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.x"
+      - name: Install build dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install build twine
+      - name: Set package version from release tag
+        run: |
+          TAG="${GIT_TAG_NAME#v}"
+          echo "${TAG}" > VERSION
+      - name: Build and publish
+        env:
+          TWINE_USERNAME: __token__
+          TWINE_PASSWORD: ${{ secrets.PYPI_TOKEN }}
+        run: |
+          python -m build
+          twine upload dist/*
