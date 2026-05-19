@@ -54,7 +54,7 @@ include = ["claim*"]
 [tool.setuptools.data-files]
 "locale/en/LC_MESSAGES" = ["locale/en/LC_MESSAGES/django.po"]
 
-# SonarCloud: scan claim sources only; see uv.lock note for assembly-level pinning.
+# SonarCloud SCA: uv.lock pins PyPI deps; openimis-be-* siblings resolve via assembly at runtime.
 [tool.sonar]
 sources = "claim"
 exclusions = "**/migrations/**,**/static/**,**/media/**,**/tests/**"
