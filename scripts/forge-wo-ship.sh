@@ -61,6 +61,8 @@ command -v jq >/dev/null 2>&1 || die "jq is required"
 
 REPO_URL="$(git remote get-url origin 2>/dev/null || true)"
 REPO_NAME="$(echo "$REPO_URL" | sed -E 's#.*github\.com[:/]([^/]+/[^/.]+).*#\1#; s#\.git$##')"
+GH_REPO="$REPO_NAME"
+export GH_REPO
 COMMIT_HASH="$(git rev-parse HEAD)"
 COMMIT_MSG="$(git log -1 --pretty=%B)"
 COMMIT_AUTHOR="$(git config user.name 2>/dev/null || true)"
@@ -89,7 +91,7 @@ if git rev-parse HEAD~1 >/dev/null 2>&1; then
 fi
 
 if [[ -z "$GH_BASE" ]]; then
-  GH_BASE="$(gh repo view "$REPO_NAME" --json defaultBranchRef -q .defaultBranchRef.name 2>/dev/null || echo develop)"
+  GH_BASE="$(gh repo view "$GH_REPO" --json defaultBranchRef -q .defaultBranchRef.name 2>/dev/null || echo develop)"
 fi
 
 echo "==> Pushing $BRANCH to origin"
