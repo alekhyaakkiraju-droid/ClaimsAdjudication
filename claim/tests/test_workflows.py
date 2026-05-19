@@ -32,6 +32,7 @@ from core.test_helpers import create_test_interactive_user
 from insuree.test_helpers import create_test_insuree
 from medical.test_helpers import create_test_diagnosis, create_test_item, create_test_service
 from policy.test_helpers import create_test_policy2
+from product.models import ProductItemOrService
 from product.test_helpers import create_test_product
 
 
@@ -108,6 +109,23 @@ class ClaimWorkflowCharacterizationTest(TestCase):
         self.assertEqual(claim.status, Claim.STATUS_VALUATED)
         self.assertEqual(claim.approved, approved_amount(claim))
         self.assertIsNotNone(claim.process_stamp)
+        delete_claim_with_itemsvc_dedrem_and_history(claim)
+
+    def test_processing_checked_claim_with_relative_prices_becomes_processed(self):
+        claim, item, _ = self._claim_with_provisions()
+        mark_test_claim_as_processed(claim, status=Claim.STATUS_CHECKED)
+        item.price_origin = ProductItemOrService.ORIGIN_RELATIVE
+        item.status = ClaimDetail.STATUS_PASSED
+        item.save()
+
+        errors = processing_claim(
+            claim, self.user, is_process=True, validate=False
+        )
+        claim.refresh_from_db()
+
+        self.assertEqual(errors, [])
+        self.assertEqual(claim.status, Claim.STATUS_PROCESSED)
+        self.assertIsNotNone(claim.date_processed)
         delete_claim_with_itemsvc_dedrem_and_history(claim)
 
     def test_set_claim_processed_or_valuated_rejects_on_errors(self):
