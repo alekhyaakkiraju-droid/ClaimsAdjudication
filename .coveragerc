@@ -1,0 +1,20 @@
+# Critical-path coverage gate for WO-004 (ClaimsAdjudication PRD ≥60%).
+# Run from openimis-be_py parent: see docs/CRITICAL_PATH_COVERAGE.md
+
+[run]
+source =
+    claim/services.py
+    claim/utils.py
+    claim/validations.py
+    claim/gql_mutations.py
+    claim/views.py
+    claim/schema.py
+omit =
+    */migrations/*
+    */tests/*
+
+[report]
+fail_under = 60
+precision = 1
+show_missing = True
+skip_covered = False
