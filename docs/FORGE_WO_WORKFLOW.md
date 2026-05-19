@@ -19,7 +19,7 @@ Standing process for **every** Forge work order (WO) in ClaimsAdjudication.
 What the script does:
 
 1. `git push -u origin <current-branch>`
-2. `gh pr create` or reuse existing PR for the branch
+2. `gh pr create` against **`origin`** (`GH_REPO` from `git remote get-url origin`) — always the fork, not `upstream`
 3. Writes `.forge/last-ship-mcp.json` with payloads for Forge MCP
 
 Then the agent (or you) **must** still call Forge MCP in the same session:
