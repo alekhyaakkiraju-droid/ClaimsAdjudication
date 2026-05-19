@@ -1,4 +1,4 @@
-from claim.models import Claim, ClaimService, ClaimItem, ClaimDedRem
+from claim.models import Claim, ClaimService, ClaimItem, ClaimDedRem, ClaimMutation
 from core.models.user import ClaimAdmin
 from claim.validations import get_claim_category
 from claim.utils import approved_amount
@@ -191,8 +191,10 @@ def mark_test_claim_as_processed(claim, status=Claim.STATUS_CHECKED, audit_user_
 
 def delete_claim_with_itemsvc_dedrem_and_history(claim):
     # first delete old versions of the claim
-    ClaimDedRem.objects.filter(claim=claim).delete()
     old_claims = Claim.objects.filter(legacy_id=claim.id)
+    claim_ids = [claim.id] + list(old_claims.values_list("id", flat=True))
+    ClaimMutation.objects.filter(claim_id__in=claim_ids).delete()
+    ClaimDedRem.objects.filter(claim=claim).delete()
     ClaimItem.objects.filter(claim__in=old_claims).delete()
     ClaimService.objects.filter(claim__in=old_claims).delete()
     old_claims.delete()
