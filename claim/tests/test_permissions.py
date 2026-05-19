@@ -80,6 +80,31 @@ class ClaimPermissionCharacterizationTest(openIMISGraphQLTestCase):
         self.assertIn("errors", content)
         self.assertIn("unauthorized", _errors_text(content))
 
+    def _assert_mutation_denied_via_log(self, client_mutation_id, token):
+        """OpenIMIS mutations return GraphQL data; denials are recorded in mutationLogs."""
+        content = json.loads(
+            self.query(
+                f"""
+                {{
+                    mutationLogs(clientMutationId: "{client_mutation_id}") {{
+                        edges {{ node {{ status error }} }}
+                    }}
+                }}
+                """,
+                headers={"HTTP_AUTHORIZATION": f"Bearer {token}"},
+            ).content
+        )
+        self.assertNotIn("errors", content, content.get("errors"))
+        edges = content["data"]["mutationLogs"]["edges"]
+        self.assertTrue(edges, "expected mutation log entry")
+        node = edges[0]["node"]
+        self.assertEqual(node["status"], 1)
+        error_text = (node.get("error") or "").lower()
+        self.assertTrue(
+            "unauthorized" in error_text or "permissiondenied" in error_text,
+            msg=node.get("error"),
+        )
+
     def _assert_graphql_authorized_no_errors(self, response):
         content = json.loads(response.content)
         self.assertNotIn("errors", content, content.get("errors"))
@@ -226,7 +251,9 @@ class ClaimPermissionCharacterizationTest(openIMISGraphQLTestCase):
         self.assertNotIn("gql_query_claims_perms", same_dx_source)
 
     # --- Unauthorized GraphQL mutations ---
+    # Mutations use OpenIMISMutation: PermissionDenied is logged, not a top-level GraphQL error.
 
+    @mock.patch.object(ClaimConfig, "gql_mutation_create_claims_perms", ["999001"])
     def test_unauthorized_create_claim_denied(self):
         response = self.query(
             f"""
@@ -255,15 +282,20 @@ class ClaimPermissionCharacterizationTest(openIMISGraphQLTestCase):
             """,
             headers={"HTTP_AUTHORIZATION": f"Bearer {self.unauthorized_token}"},
         )
-        self._assert_graphql_unauthorized(response)
+        content = json.loads(response.content)
+        self.assertNotIn("errors", content, content.get("errors"))
+        self._assert_mutation_denied_via_log(
+            "wo003-create-denied", self.unauthorized_token
+        )
 
     @mock.patch.object(ClaimConfig, "gql_mutation_submit_claims_perms", ["999002"])
     def test_unauthorized_submit_claims_denied(self):
+        mutation_id = "wo003-submit-denied"
         response = self.query(
             f"""
             mutation {{
                 submitClaims(input: {{
-                    clientMutationId: "wo003-submit-denied"
+                    clientMutationId: "{mutation_id}"
                     clientMutationLabel: "WO003 denied submit"
                     uuids: ["{self.test_claim.uuid}"]
                 }}) {{
@@ -273,15 +305,18 @@ class ClaimPermissionCharacterizationTest(openIMISGraphQLTestCase):
             """,
             headers={"HTTP_AUTHORIZATION": f"Bearer {self.unauthorized_token}"},
         )
-        self._assert_graphql_unauthorized(response)
+        content = json.loads(response.content)
+        self.assertNotIn("errors", content, content.get("errors"))
+        self._assert_mutation_denied_via_log(mutation_id, self.unauthorized_token)
 
     @mock.patch.object(ClaimConfig, "gql_mutation_process_claims_perms", ["999003"])
     def test_unauthorized_process_claims_denied(self):
+        mutation_id = "wo003-process-denied"
         response = self.query(
             f"""
             mutation {{
                 processClaims(input: {{
-                    clientMutationId: "wo003-process-denied"
+                    clientMutationId: "{mutation_id}"
                     clientMutationLabel: "WO003 denied process"
                     uuids: ["{self.test_claim.uuid}"]
                 }}) {{
@@ -291,7 +326,9 @@ class ClaimPermissionCharacterizationTest(openIMISGraphQLTestCase):
             """,
             headers={"HTTP_AUTHORIZATION": f"Bearer {self.unauthorized_token}"},
         )
-        self._assert_graphql_unauthorized(response)
+        content = json.loads(response.content)
+        self.assertNotIn("errors", content, content.get("errors"))
+        self._assert_mutation_denied_via_log(mutation_id, self.unauthorized_token)
 
 
 class ClaimRestPermissionCharacterizationTest(APITestCase):

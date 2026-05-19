@@ -73,7 +73,7 @@ def create_test_claim(custom_props=None, user=DummyUser(), product=None):
             custom_props_ca = {"health_facility": custom_props["health_facility"]}
         else:
             custom_props_ca = {"health_facility_id": custom_props["health_facility_id"]}
-        custom_props["claim_admin"] = create_test_claim_admin(
+        custom_props["admin"] = create_test_claim_admin(
             custom_props=custom_props_ca
         )
 
