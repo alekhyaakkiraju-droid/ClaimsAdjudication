@@ -1,6 +1,7 @@
 name: Automated CI testing
 # Vendored from openimis/openimis-be_py develop (ci_module.yml).
 # ClaimsAdjudication fork: default MODULE_NAME to "claim" when the repo is not openimis/openimis-be-*_py.
+# On non-upstream repos, "Run All Tests" runs the current module only (full assembly suite is openimis-be_py CI).
 # This workflow run automatically for every commit on github it checks the syntax and launch the tests.
 # | grep . | uniq -c filters out empty lines and then groups consecutive lines together with the number of occurrences
 on:
@@ -338,10 +339,19 @@ jobs:
         if: success() || failure()
         run: |
           python -V
-          export MODULES=$(jq -r '(.modules[].name)' ../openimis.json | xargs)
-          MODULES=$(echo "$MODULES" | sed -E "s/\b$(echo "${CI_EXCLUDED_MODULE// /\\b|\\b}")\b/ /g" | xargs)
-          echo $MODULES
-          python manage.py test --keepdb $MODULES
+          export MODULE_NAME="$(echo $GITHUB_REPOSITORY | sed 's#^openimis/openimis-be-\(.*\)_py$#\1#')"
+          if [[ -z "$MODULE_NAME" || "$MODULE_NAME" == *"/"* ]]; then
+            MODULE_NAME="claim"
+          fi
+          if [[ "$GITHUB_REPOSITORY" =~ ^openimis/openimis-be-.*_py$ ]]; then
+            export MODULES=$(jq -r '(.modules[].name)' ../openimis.json | xargs)
+            MODULES=$(echo "$MODULES" | sed -E "s/\b$(echo "${CI_EXCLUDED_MODULE// /\\b|\\b}")\b/ /g" | xargs)
+            echo "Running full assembly test suite: $MODULES"
+            python manage.py test --keepdb $MODULES
+          else
+            echo "Fork/non-upstream repo: running module-only tests for $MODULE_NAME"
+            python manage.py test --keepdb $MODULE_NAME
+          fi
         env:
           SECRET_KEY: secret
           MODE: DEV
