@@ -128,8 +128,8 @@ class ClaimSubmissionQueryIntegrationTest(openIMISGraphQLTestCase):
                     code
                     status
                     claimed
-                    items {{ edges {{ node {{ priceAsked qtyProvided }} }} }}
-                    services {{ edges {{ node {{ priceAsked qtyProvided }} }} }}
+                    items {{ priceAsked qtyProvided }}
+                    services {{ priceAsked qtyProvided }}
                 }}
             }}
             """,

@@ -145,8 +145,8 @@ class ClaimPermissionCharacterizationTest(openIMISGraphQLTestCase):
         )
         self._assert_graphql_unauthorized(response)
 
-    def test_claim_attachments_stub_returns_null_when_authorized(self):
-        """Resolver checks claims perms then returns None (no queryset)."""
+    def test_claim_attachments_returns_empty_connection_when_authorized(self):
+        """Resolver checks claims perms; default connection field yields empty list."""
         response = self.query(
             """
             query {
@@ -157,7 +157,7 @@ class ClaimPermissionCharacterizationTest(openIMISGraphQLTestCase):
         )
         content = json.loads(response.content)
         self.assertNotIn("errors", content, content.get("errors"))
-        self.assertIsNone(content["data"]["claimAttachments"])
+        self.assertEqual(content["data"]["claimAttachments"]["totalCount"], 0)
 
     # --- Permission mismatch: officers vs claims constants ---
 
@@ -239,7 +239,7 @@ class ClaimPermissionCharacterizationTest(openIMISGraphQLTestCase):
                     insureeId: {self.test_insuree.id}
                     icdId: {self.test_icd.id}
                     healthFacilityId: {self.test_claim.health_facility_id}
-                    adminId: {self.test_claim.claim_admin_id}
+                    adminId: {self.test_claim.admin_id}
                     dateFrom: "2020-01-01"
                     dateClaimed: "2020-01-01"
                     visitType: "O"
@@ -257,6 +257,7 @@ class ClaimPermissionCharacterizationTest(openIMISGraphQLTestCase):
         )
         self._assert_graphql_unauthorized(response)
 
+    @mock.patch.object(ClaimConfig, "gql_mutation_submit_claims_perms", ["999002"])
     def test_unauthorized_submit_claims_denied(self):
         response = self.query(
             f"""
@@ -274,6 +275,7 @@ class ClaimPermissionCharacterizationTest(openIMISGraphQLTestCase):
         )
         self._assert_graphql_unauthorized(response)
 
+    @mock.patch.object(ClaimConfig, "gql_mutation_process_claims_perms", ["999003"])
     def test_unauthorized_process_claims_denied(self):
         response = self.query(
             f"""
