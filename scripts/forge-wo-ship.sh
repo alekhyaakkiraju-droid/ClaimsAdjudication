@@ -157,6 +157,7 @@ fi
 
 MCP_FILE="$ROOT/.forge/last-ship-mcp.json"
 mkdir -p "$ROOT/.forge"
+SHIPPED_AT="$(date -u +"%Y-%m-%dT%H:%M:%SZ")"
 jq -n \
   --arg wo_label "$WO_LABEL" \
   --arg wo_uuid "$WO_UUID" \
@@ -165,6 +166,7 @@ jq -n \
   --arg repo_url "$REPO_URL" \
   --arg repo_name "$REPO_NAME" \
   --arg pr_url "$PR_URL" \
+  --arg shipped_at "$SHIPPED_AT" \
   --argjson pr_number "${PR_NUMBER:-null}" \
   --arg commit_hash "$COMMIT_HASH" \
   --arg commit_message "$COMMIT_MSG" \
@@ -175,9 +177,10 @@ jq -n \
   --argjson changed_files "$CHANGED_FILES_JSON" \
   '{
     instructions: "Run these Forge MCP tools in order (set_project if needed):",
+    shipped_at: $shipped_at,
     set_project: {project_id: $project_id},
     create_pull_request: {
-      work_order_id: (if $wo_uuid != "" then $wo_uuid else "LOOKUP_VIA_get_work_order"),
+      work_order_id: (if $wo_uuid != "" then $wo_uuid else "LOOKUP_VIA_get_work_order" end),
       branch_name: $branch,
       repo_url: $repo_url,
       repo_name: $repo_name,
@@ -186,7 +189,7 @@ jq -n \
       changes_summary: ("Shipped " + $wo_label)
     },
     update_work_order: {
-      work_order_id: (if $wo_uuid != "" then $wo_uuid else "LOOKUP_VIA_get_work_order"),
+      work_order_id: (if $wo_uuid != "" then $wo_uuid else "LOOKUP_VIA_get_work_order" end),
       status: "in_review",
       branch_name: $branch,
       repo_url: $repo_url,
