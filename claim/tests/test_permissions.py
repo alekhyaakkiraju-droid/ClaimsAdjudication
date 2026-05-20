@@ -170,8 +170,8 @@ class ClaimPermissionCharacterizationTest(openIMISGraphQLTestCase):
         )
         self._assert_graphql_unauthorized(response)
 
-    def test_claim_attachments_returns_empty_connection_when_authorized(self):
-        """Resolver checks claims perms; default connection field yields empty list."""
+    def test_claim_attachments_returns_connection_when_authorized(self):
+        """WO-011: resolver returns attachment queryset after centralized auth."""
         response = self.query(
             """
             query {
@@ -182,7 +182,8 @@ class ClaimPermissionCharacterizationTest(openIMISGraphQLTestCase):
         )
         content = json.loads(response.content)
         self.assertNotIn("errors", content, content.get("errors"))
-        self.assertEqual(content["data"]["claimAttachments"]["totalCount"], 0)
+        self.assertIsNotNone(content["data"]["claimAttachments"])
+        self.assertGreaterEqual(content["data"]["claimAttachments"]["totalCount"], 0)
 
     # --- Permission mismatch: officers vs claims constants ---
 

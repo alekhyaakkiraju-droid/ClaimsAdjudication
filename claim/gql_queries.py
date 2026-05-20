@@ -5,7 +5,6 @@ from insuree.schema import InsureeGQLType
 from location.schema import HealthFacilityGQLType
 from medical.schema import DiagnosisGQLType
 from claim_batch.schema import BatchRunGQLType
-from .apps import ClaimConfig
 from claim.models import (
     ClaimDedRem,
     Claim,
@@ -17,8 +16,7 @@ from claim.models import (
     ClaimServiceService,
     ClaimServiceItem,
 )
-from django.utils.translation import gettext as _
-from django.core.exceptions import PermissionDenied
+from claim.gql_authorization import require_query_permission
 from core.schema import ClaimAdminGQLType
 
 
@@ -45,15 +43,13 @@ class ClaimGQLType(DjangoObjectType):
     restore_id = graphene.Int()
 
     def resolve_insuree(self, info):
-        if not info.context.user.has_perms(ClaimConfig.gql_query_claims_perms):
-            raise PermissionDenied(_("unauthorized"))
+        require_query_permission(info, "claim_gql_type")
         if "insuree_loader" in info.context.dataloaders and self.insuree_id:
             return info.context.dataloaders["insuree_loader"].load(self.insuree_id)
         return self.insuree
 
     def resolve_health_facility(self, info):
-        if not info.context.user.has_perms(ClaimConfig.gql_query_claims_perms):
-            raise PermissionDenied(_("unauthorized"))
+        require_query_permission(info, "claim_gql_type")
         if (
             "health_facility_loader" in info.context.dataloaders
             and self.health_facility_id
@@ -95,8 +91,7 @@ class ClaimGQLType(DjangoObjectType):
         connection_class = ExtendedConnection
 
     def resolve_attachments_count(self, info):
-        if not info.context.user.has_perms(ClaimConfig.gql_query_claims_perms):
-            raise PermissionDenied(_("unauthorized"))
+        require_query_permission(info, "claim_gql_type")
         return (
             self.attachments.filter(legacy_id__isnull=True)
             .filter(validity_to__isnull=True)
@@ -104,22 +99,19 @@ class ClaimGQLType(DjangoObjectType):
         )
 
     def resolve_items(self, info):
-        if not info.context.user.has_perms(ClaimConfig.gql_query_claims_perms):
-            raise PermissionDenied(_("unauthorized"))
+        require_query_permission(info, "claim_gql_type")
         return self.items.filter(legacy_id__isnull=True).filter(
             validity_to__isnull=True
         )
 
     def resolve_services(self, info):
-        if not info.context.user.has_perms(ClaimConfig.gql_query_claims_perms):
-            raise PermissionDenied(_("unauthorized"))
+        require_query_permission(info, "claim_gql_type")
         return self.services.filter(legacy_id__isnull=True).filter(
             validity_to__isnull=True
         )
 
     def resolve_client_mutation_id(self, info):
-        if not info.context.user.has_perms(ClaimConfig.gql_query_claims_perms):
-            raise PermissionDenied(_("unauthorized"))
+        require_query_permission(info, "claim_gql_type")
         claim_mutation = (
             self.mutations.select_related("mutation").filter(mutation__status=0).first()
         )

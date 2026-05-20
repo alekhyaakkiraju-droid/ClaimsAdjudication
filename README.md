@@ -12,6 +12,8 @@ CI quality gates (WO-007): **[docs/FORGE_CI_GATES.md](docs/FORGE_CI_GATES.md)** 
 
 Sibling integration (WO-010): **[docs/SIBLING_COMPATIBILITY.md](docs/SIBLING_COMPATIBILITY.md)** — `./scripts/verify-sibling-compatibility.sh`.
 
+GraphQL authorization (WO-011): **[docs/GRAPHQL_AUTHORIZATION.md](docs/GRAPHQL_AUTHORIZATION.md)** — `claim/gql_authorization.py`.
+
 [![License: AGPL v3](https://img.shields.io/badge/License-AGPL%20v3-blue.svg)](https://www.gnu.org/licenses/agpl-3.0)
 
 ## Code climate (develop branch)
