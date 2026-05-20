@@ -94,6 +94,11 @@ if [[ -z "$GH_BASE" ]]; then
   GH_BASE="$(gh repo view "$GH_REPO" --json defaultBranchRef -q .defaultBranchRef.name 2>/dev/null || echo develop)"
 fi
 
+if [[ -x "$ROOT/scripts/forge-pre-ship-sonar.sh" ]]; then
+  echo "==> Sonar workflow pre-check"
+  "$ROOT/scripts/forge-pre-ship-sonar.sh"
+fi
+
 echo "==> Pushing $BRANCH to origin"
 git push -u origin "$BRANCH"
 

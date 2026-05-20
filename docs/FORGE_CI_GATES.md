@@ -40,3 +40,7 @@ OPENIMIS_MANAGE_PY=/path/to/openimis-be_py/openIMIS/manage.py ./scripts/check-cr
 ## Release path
 
 Failing any gate blocks merge. Production publish still uses [python-publish.yml](../.github/workflows/python-publish.yml) (WO-006).
+
+## SonarCloud
+
+PRs must pass **SonarCloud Code Analysis** (~15s). Workflow hotspots are common — see **[SONAR.md](SONAR.md)** and run `./scripts/forge-pre-ship-sonar.sh` before ship.
