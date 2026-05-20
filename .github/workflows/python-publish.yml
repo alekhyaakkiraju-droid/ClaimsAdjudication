@@ -36,9 +36,11 @@ jobs:
           python -m pip install --upgrade pip
           pip install build twine
       - name: Set package version from release tag
+        env:
+          DISPATCH_TAG: ${{ inputs.tag }}
         run: |
           if [ "${{ github.event_name }}" = "workflow_dispatch" ]; then
-            RAW_TAG="${{ inputs.tag }}"
+            RAW_TAG="${DISPATCH_TAG}"
           else
             RAW_TAG="${GIT_TAG_NAME}"
           fi
