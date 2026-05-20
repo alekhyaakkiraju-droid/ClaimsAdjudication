@@ -237,7 +237,7 @@ jobs:
           DB_PASSWORD: YourStrong!Passw0rd
       
       
-      - name: Django tests PSQL
+      - name: Django tests PSQL (with critical-path coverage gate)
         working-directory: ./openimis/openIMIS
 
         # Run the tests regardless if previous steps failed (if setup fails the tests should crash instantly)
@@ -248,7 +248,9 @@ jobs:
           if [[ -z "$MODULE_NAME" || "$MODULE_NAME" == *"/"* ]]; then
             MODULE_NAME="claim"
           fi
-          python manage.py test --keepdb $MODULE_NAME
+          python -m pip install coverage
+          coverage run --rcfile=../../current-module/.coveragerc manage.py test --keepdb $MODULE_NAME
+          coverage report --rcfile=../../current-module/.coveragerc
         env:
           SECRET_KEY: secret
           MODE: DEV
@@ -350,7 +352,9 @@ jobs:
             python manage.py test --keepdb $MODULES
           else
             echo "Fork/non-upstream repo: running module-only tests for $MODULE_NAME"
-            python manage.py test --keepdb $MODULE_NAME
+            python -m pip install coverage
+            coverage run --rcfile=../../current-module/.coveragerc manage.py test --keepdb $MODULE_NAME
+            coverage report --rcfile=../../current-module/.coveragerc
           fi
         env:
           SECRET_KEY: secret
@@ -393,7 +397,6 @@ jobs:
       #     name: coverage.xml
       #     path: ./openimis/openIMIS/coverage
   flake-8-linter:
-    continue-on-error: true
     name: Run flake8 check
     runs-on: ubuntu-24.04
     needs: build_backend
