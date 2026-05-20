@@ -2,8 +2,12 @@
 WO-011: Tests for centralized GraphQL authorization maps.
 """
 
+from unittest import mock
+
+from django.core.exceptions import PermissionDenied
 from django.test import SimpleTestCase, override_settings
 
+from claim.apps import ClaimConfig
 from claim.gql_authorization import (
     GQL_MUTATION_PERMISSION_MAP,
     GQL_QUERY_PERMISSION_MAP,
@@ -11,7 +15,6 @@ from claim.gql_authorization import (
     list_query_operations,
     require_query_permission,
 )
-from claim.apps import ClaimConfig
 
 
 class GqlAuthorizationMapTest(SimpleTestCase):
@@ -63,7 +66,17 @@ class GqlAuthorizationMapTest(SimpleTestCase):
     def test_claim_attachments_uses_query_claims_perms(self):
         self.assertEqual(
             GQL_QUERY_PERMISSION_MAP["claim_attachments"],
-            ClaimConfig.gql_query_claims_perms,
+            "gql_query_claims_perms",
+        )
+
+    def test_fsp_and_same_diagnosis_use_officers_perm_keys(self):
+        self.assertEqual(
+            GQL_QUERY_PERMISSION_MAP["fsp_from_claim"],
+            "gql_query_claim_officers_perms",
+        )
+        self.assertEqual(
+            GQL_QUERY_PERMISSION_MAP["claim_with_same_diagnosis"],
+            "gql_query_claim_officers_perms",
         )
 
 
@@ -81,3 +94,20 @@ class RequireQueryPermissionRowSecurityTest(SimpleTestCase):
             context = Ctx()
 
         require_query_permission(Info(), "claims")
+
+
+class RequireQueryPermissionRuntimeConfigTest(SimpleTestCase):
+    @mock.patch.object(ClaimConfig, "gql_query_claim_officers_perms", ["999001"])
+    def test_officers_perm_resolved_at_runtime_not_import(self):
+        class User:
+            def has_perms(self, perms):
+                return perms == ["111001"]
+
+        class Ctx:
+            user = User()
+
+        class Info:
+            context = Ctx()
+
+        with self.assertRaises(PermissionDenied):
+            require_query_permission(Info(), "fsp_from_claim")
