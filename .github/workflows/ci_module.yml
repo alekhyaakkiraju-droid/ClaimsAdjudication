@@ -249,8 +249,13 @@ jobs:
             MODULE_NAME="claim"
           fi
           python -m pip install coverage
-          python -m coverage run --rcfile=../../current-module/.coveragerc manage.py test --keepdb $MODULE_NAME
+          python -m coverage run \
+            --rcfile=../../current-module/.coveragerc \
+            --source=../../current-module/claim \
+            manage.py test --keepdb $MODULE_NAME
+          test_exit=$?
           python -m coverage report --rcfile=../../current-module/.coveragerc
+          exit $test_exit
         env:
           SECRET_KEY: secret
           MODE: DEV
@@ -353,8 +358,13 @@ jobs:
           else
             echo "Fork/non-upstream repo: running module-only tests for $MODULE_NAME"
             python -m pip install coverage
-            python -m coverage run --rcfile=../../current-module/.coveragerc manage.py test --keepdb $MODULE_NAME
+            python -m coverage run \
+              --rcfile=../../current-module/.coveragerc \
+              --source=../../current-module/claim \
+              manage.py test --keepdb $MODULE_NAME
+            test_exit=$?
             python -m coverage report --rcfile=../../current-module/.coveragerc
+            exit $test_exit
           fi
         env:
           SECRET_KEY: secret
