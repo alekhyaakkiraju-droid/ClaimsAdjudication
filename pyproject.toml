@@ -58,3 +58,16 @@ include = ["claim*"]
 [tool.sonar]
 sources = "claim"
 exclusions = "**/migrations/**,**/static/**,**/media/**,**/tests/**"
+
+# WO-007: Forge CI type-check gate. Baseline mode until WO-031 tightens rules.
+[tool.mypy]
+python_version = "3.11"
+files = ["claim"]
+exclude = ["claim/migrations/", "claim/tests/"]
+ignore_missing_imports = true
+allow_untyped_defs = true
+allow_incomplete_defs = true
+check_untyped_defs = false
+warn_unused_ignores = true
+follow_imports = "silent"
+disable_error_code = ["var-annotated", "attr-defined", "name-defined", "arg-type"]

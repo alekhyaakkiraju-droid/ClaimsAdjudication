@@ -32,9 +32,19 @@ Then the agent (or you) **must** still call Forge MCP in the same session:
 1. Implement WO; validate acceptance criteria  
 2. `prepare_commit` (Forge MCP)  
 3. `git commit -m "[WO-XXX] …"` (pre-commit hook runs checklist)  
-4. `./scripts/forge-wo-ship.sh WO-XXX <uuid>`  
-5. `create_pull_request` + `update_work_order` (status `in_review`)  
-6. Report PR URL to user  
+4. `./scripts/forge-pre-ship-sonar.sh` (or rely on ship script — catches Sonar workflow hotspots before push)  
+5. `./scripts/forge-wo-ship.sh WO-XXX <uuid>`  
+6. `create_pull_request` + `update_work_order` (status `in_review`)  
+7. Confirm **SonarCloud Code Analysis** and CI are green on the PR  
+8. Report PR URL to user  
+
+### SonarCloud (required for merge)
+
+Project: `alekhyaakkiraju-droid_openimis-be-claim_py`. See **[docs/SONAR.md](SONAR.md)**.
+
+- **S7630:** never put `${{ inputs.* }}` inside `run:` — use `env:` + shell variables (`DISPATCH_TAG`).  
+- **S7637:** pin third-party `uses:` to a **full commit SHA** with `# vX.Y.Z` comment.  
+- Quality gate fails on **unreviewed security hotspots** in new/changed workflow YAML.
 
 ## Setup (once per clone)
 

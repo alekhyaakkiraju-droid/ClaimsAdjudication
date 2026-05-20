@@ -8,6 +8,8 @@ This fork participates in the **ClaimsAdjudication** Forge project. For every co
 
 See **[docs/FORGE_WO_WORKFLOW.md](docs/FORGE_WO_WORKFLOW.md)** — one-command ship: `./scripts/forge-wo-ship.sh WO-XXX <work_order_uuid>`.
 
+CI quality gates (WO-007): **[docs/FORGE_CI_GATES.md](docs/FORGE_CI_GATES.md)** — `forge-quality-gates.yml` + blocking coverage/lint in `ci_module.yml`.
+
 [![License: AGPL v3](https://img.shields.io/badge/License-AGPL%20v3-blue.svg)](https://www.gnu.org/licenses/agpl-3.0)
 
 ## Code climate (develop branch)

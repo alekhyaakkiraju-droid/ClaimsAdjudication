@@ -15,11 +15,19 @@ Do **not** stop after commit. In **one continuous flow**:
 
 1. **`prepare_commit`** (Forge MCP) — only after acceptance criteria are satisfied; use returned message.
 2. **`git commit`** with `[WO-XXX]` in the message (Forge pre-commit hook enforces checklist).
-3. **`./scripts/forge-wo-ship.sh WO-XXX <work_order_uuid>`** — pushes branch and creates/updates GitHub PR (`develop` base on fork).
-4. **Forge MCP (same turn, immediately after ship script):**
+3. **`./scripts/forge-pre-ship-sonar.sh`** — blocks common Sonar failures on workflow YAML (S7630/S7637); also runs inside ship script.
+4. **`./scripts/forge-wo-ship.sh WO-XXX <work_order_uuid>`** — pushes branch and creates/updates GitHub PR (`develop` base on fork).
+5. **Forge MCP (same turn, immediately after ship script):**
    - `create_pull_request` — pass `work_order_id`, `branch_name`, `repo_url`, `repo_name`, `pr_url`, `pr_number`, `changes_summary`
    - `update_work_order` — `status: in_review` plus all dev-activity fields from `.forge/last-ship-mcp.json` / git commands
-5. Confirm PR URL and Forge status `in_review` to the user.
+6. Confirm PR URL, Forge status `in_review`, and **SonarCloud** check green on the PR.
+
+## SonarCloud workflow rules
+
+See `docs/SONAR.md`. When adding/editing `.github/workflows/*.yml`:
+
+- Pin actions: `uses: org/action@<full-sha> # v1.2.3` (not `@v1.2.3` alone).
+- Workflow inputs: `env: DISPATCH_TAG: ${{ inputs.tag }}` then `$DISPATCH_TAG` in `run:` — never `${{ inputs.tag }}` inside `run:`.
 
 Never force-push. Never skip push, PR, or Forge update for a completed WO.
 
