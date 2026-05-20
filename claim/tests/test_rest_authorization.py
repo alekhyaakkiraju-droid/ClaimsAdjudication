@@ -9,7 +9,7 @@ from django.test import SimpleTestCase
 from claim.apps import ClaimConfig
 from claim.rest_authorization import (
     REST_ENDPOINT_PERMISSIONS,
-    ClaimRestPermission,
+    ClaimPrintRestPermission,
     user_has_rest_permission,
 )
 
@@ -41,6 +41,6 @@ class ClaimRestPermissionRuntimeTest(SimpleTestCase):
         class Request:
             user = User()
 
-        perm = ClaimRestPermission("print")
+        perm = ClaimPrintRestPermission()
         self.assertTrue(perm.has_permission(Request(), None))
         self.assertFalse(user_has_rest_permission(User(), "attach"))

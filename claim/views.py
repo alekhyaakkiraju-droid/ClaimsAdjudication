@@ -11,12 +11,12 @@ from report.services import ReportService
 from .apps import ClaimConfig
 from .models import ClaimAttachment
 from .reports import claim
-from .rest_authorization import ClaimRestPermission
+from .rest_authorization import ClaimAttachRestPermission, ClaimPrintRestPermission
 from .services import ClaimReportService
 
 
 @api_view(["GET"])
-@permission_classes([ClaimRestPermission("print")])
+@permission_classes([ClaimPrintRestPermission])
 def print(request):
     report_service = ReportService(request.user)
     report_data_service = ClaimReportService(request.user)
@@ -25,7 +25,7 @@ def print(request):
 
 
 @api_view(["GET", "POST"])
-@permission_classes([ClaimRestPermission("attach")])
+@permission_classes([ClaimAttachRestPermission])
 def attach(request):
     queryset = ClaimAttachment.objects.filter(*core.filter_validity())
     if settings.ROW_SECURITY:

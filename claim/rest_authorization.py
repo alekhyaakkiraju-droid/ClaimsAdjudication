@@ -42,11 +42,15 @@ def require_rest_permission(request, endpoint: str) -> None:
         raise PermissionDenied(_("unauthorized"))
 
 
-class ClaimRestPermission(BasePermission):
-    """DRF permission class for claim REST views."""
-
-    def __init__(self, endpoint: str):
-        self.endpoint = endpoint
+class ClaimPrintRestPermission(BasePermission):
+    """DRF permission for GET /claim/print/."""
 
     def has_permission(self, request, view):
-        return user_has_rest_permission(request.user, self.endpoint)
+        return user_has_rest_permission(request.user, "print")
+
+
+class ClaimAttachRestPermission(BasePermission):
+    """DRF permission for /claim/attach/."""
+
+    def has_permission(self, request, view):
+        return user_has_rest_permission(request.user, "attach")

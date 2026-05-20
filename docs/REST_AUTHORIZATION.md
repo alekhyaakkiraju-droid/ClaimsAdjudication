@@ -23,5 +23,5 @@ Row-security filtering on `/claim/attach/` is unchanged: `LocationManager` filte
 ## Adding a REST endpoint
 
 1. Add entry to `REST_ENDPOINT_PERMISSIONS` in `rest_authorization.py`.
-2. Decorate the view with `@permission_classes([ClaimRestPermission("…")])`.
+2. Add a `BasePermission` subclass (see `ClaimPrintRestPermission`) and decorate with `@permission_classes([…])`.
 3. Return **404** for missing resources; reserve **403** for authorization failures only.
