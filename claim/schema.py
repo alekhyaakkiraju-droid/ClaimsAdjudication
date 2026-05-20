@@ -11,12 +11,11 @@ from core.schema import (
 from django.db.models import OuterRef, Subquery, Avg, Q
 import graphene_django_optimizer as gql_optimizer
 from core.schema import OrderedDjangoFilterConnectionField, OfficerGQLType
-from django.conf import settings
-from .models import ClaimMutation, Claim
-from django.utils.translation import gettext as _
-from graphene_django.filter import DjangoFilterConnectionField
-from django.core.exceptions import PermissionDenied
 from .apps import ClaimConfig
+from .models import ClaimMutation, Claim
+from graphene_django.filter import DjangoFilterConnectionField
+from claim.gql_authorization import require_query_permission
+from claim.models import ClaimAttachment
 # We do need all queries and mutations in the namespace here.
 
 from location.schema import HealthFacilityGQLType
@@ -109,12 +108,7 @@ class Query(graphene.ObjectType):
     )
 
     def resolve_insuree_name_by_chfid(self, info, **kwargs):
-        if not info.context.user.has_perms(
-            ClaimConfig.gql_mutation_create_claims_perms
-        ) and not info.context.user.has_perms(
-            ClaimConfig.gql_mutation_update_claims_perms
-        ):
-            raise PermissionDenied(_("unauthorized"))
+        require_query_permission(info, "insuree_name_by_chfid")
         chf_id = kwargs.get("chfId")
         insuree = (
             Insuree.objects.filter(validity_to__isnull=True, chf_id=chf_id)
@@ -128,17 +122,12 @@ class Query(graphene.ObjectType):
         return insuree_name
 
     def resolve_validate_claim_code(self, info, **kwargs):
-        if not info.context.user.has_perms(ClaimConfig.gql_query_claims_perms):
-            raise PermissionDenied(_("unauthorized"))
+        require_query_permission(info, "validate_claim_code")
         errors = check_unique_claim_code(code=kwargs["claim_code"])
         return False if errors else True
 
     def resolve_claim(self, info, id=None, uuid=None, **kwargs):
-        if (
-            not info.context.user.has_perms(ClaimConfig.gql_query_claims_perms)
-            and settings.ROW_SECURITY
-        ):
-            raise PermissionDenied(_("unauthorized"))
+        require_query_permission(info, "claim")
 
         if id is not None:
             return Claim.objects.get(id=id)
@@ -151,11 +140,7 @@ class Query(graphene.ObjectType):
             WITH = 1
             WITHOUT = 2
 
-        if (
-            not info.context.user.has_perms(ClaimConfig.gql_query_claims_perms)
-            and settings.ROW_SECURITY
-        ):
-            raise PermissionDenied(_("unauthorized"))
+        require_query_permission(info, "claims")
         query = Claim.objects
         filters = []
 
@@ -228,12 +213,11 @@ class Query(graphene.ObjectType):
         return gql_optimizer.query(query, info)
 
     def resolve_claim_attachments(self, info, **kwargs):
-        if not info.context.user.has_perms(ClaimConfig.gql_query_claims_perms):
-            raise PermissionDenied(_("unauthorized"))
+        require_query_permission(info, "claim_attachments")
+        return ClaimAttachment.objects.filter(*ClaimAttachment.filter_validity())
 
     def resolve_claim_officers(self, info, search=None, **kwargs):
-        if not info.context.user.has_perms(ClaimConfig.gql_query_claim_officers_perms):
-            raise PermissionDenied(_("unauthorized"))
+        require_query_permission(info, "claim_officers")
 
         qs = Officer.objects
 
@@ -246,8 +230,7 @@ class Query(graphene.ObjectType):
         return qs
 
     def resolve_fsp_from_claim(self, info, **kwargs):
-        if not info.context.user.has_perms(ClaimConfig.gql_query_claim_officers_perms):
-            raise PermissionDenied(_("unauthorized"))
+        require_query_permission(info, "fsp_from_claim")
         result = (
             Insuree.objects.filter(
                 chf_id=kwargs["insuree_code"],
@@ -259,8 +242,7 @@ class Query(graphene.ObjectType):
         return result
 
     def resolve_claim_with_same_diagnosis(self, info, **kwargs):
-        if not info.context.user.has_perms(ClaimConfig.gql_query_claim_officers_perms):
-            raise PermissionDenied(_("unauthorized"))
+        require_query_permission(info, "claim_with_same_diagnosis")
 
         qs = Claim.objects.filter(
             icd__code=kwargs["icd"],
@@ -274,11 +256,7 @@ class Query(graphene.ObjectType):
     def resolve_claim_history(self, info, **kwargs):
         claim_uuid = kwargs.get('claim_uuid')
 
-        if (
-            not info.context.user.has_perms(ClaimConfig.gql_query_claims_perms)
-            and settings.ROW_SECURITY
-        ):
-            raise PermissionDenied(_("unauthorized"))
+        require_query_permission(info, "claim_history")
 
         query = Claim.objects.filter(
             legacy_id=Subquery(Claim.objects.filter(uuid=claim_uuid).values('id')),

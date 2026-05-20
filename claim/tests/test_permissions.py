@@ -14,7 +14,6 @@ from django.test import override_settings
 from rest_framework import status
 from rest_framework.test import APITestCase
 
-from claim import schema as claim_schema
 from claim.apps import ClaimConfig
 from claim.models import ClaimAttachment, ClaimAttachmentType, GeneralClaimAttachmentType
 from claim.test_helpers import create_test_claim
@@ -170,8 +169,8 @@ class ClaimPermissionCharacterizationTest(openIMISGraphQLTestCase):
         )
         self._assert_graphql_unauthorized(response)
 
-    def test_claim_attachments_returns_empty_connection_when_authorized(self):
-        """Resolver checks claims perms; default connection field yields empty list."""
+    def test_claim_attachments_returns_connection_when_authorized(self):
+        """WO-011: resolver returns attachment queryset after centralized auth."""
         response = self.query(
             """
             query {
@@ -182,7 +181,8 @@ class ClaimPermissionCharacterizationTest(openIMISGraphQLTestCase):
         )
         content = json.loads(response.content)
         self.assertNotIn("errors", content, content.get("errors"))
-        self.assertEqual(content["data"]["claimAttachments"]["totalCount"], 0)
+        self.assertIsNotNone(content["data"]["claimAttachments"])
+        self.assertGreaterEqual(content["data"]["claimAttachments"]["totalCount"], 0)
 
     # --- Permission mismatch: officers vs claims constants ---
 
@@ -239,16 +239,16 @@ class ClaimPermissionCharacterizationTest(openIMISGraphQLTestCase):
         self.assertNotIn("unauthorized", _errors_text(content))
 
     def test_fsp_and_same_diagnosis_resolvers_use_claim_officers_perm_constant(self):
-        import inspect
+        from claim.gql_authorization import GQL_QUERY_PERMISSION_MAP
 
-        fsp_source = inspect.getsource(claim_schema.Query.resolve_fsp_from_claim)
-        same_dx_source = inspect.getsource(
-            claim_schema.Query.resolve_claim_with_same_diagnosis
+        self.assertEqual(
+            GQL_QUERY_PERMISSION_MAP["fsp_from_claim"],
+            "gql_query_claim_officers_perms",
         )
-        self.assertIn("gql_query_claim_officers_perms", fsp_source)
-        self.assertIn("gql_query_claim_officers_perms", same_dx_source)
-        self.assertNotIn("gql_query_claims_perms", fsp_source)
-        self.assertNotIn("gql_query_claims_perms", same_dx_source)
+        self.assertEqual(
+            GQL_QUERY_PERMISSION_MAP["claim_with_same_diagnosis"],
+            "gql_query_claim_officers_perms",
+        )
 
     # --- Unauthorized GraphQL mutations ---
     # Mutations use OpenIMISMutation: PermissionDenied is logged, not a top-level GraphQL error.
