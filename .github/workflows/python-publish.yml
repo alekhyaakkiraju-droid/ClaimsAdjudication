@@ -6,6 +6,15 @@ name: Upload Python Package
 on:
   release:
     types: [created]
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: "Release tag to build (e.g. v1.4.1)"
+        required: true
+      dry_run:
+        description: "Build and verify only; skip PyPI upload"
+        type: boolean
+        default: true
 
 jobs:
   deploy:
@@ -13,8 +22,11 @@ jobs:
 
     steps:
       - uses: olegtarasov/get-tag@53af8e1e538a0ffab949cdde3e332d8e58e8630f # v2.1
+        if: github.event_name == 'release'
         id: tagName
       - uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4
+        with:
+          ref: ${{ github.event.release.tag_name || inputs.tag }}
       - name: Set up Python
         uses: actions/setup-python@a26af69be951a213d495a4c3e4e4022e16d87065 # v5
         with:
@@ -24,13 +36,44 @@ jobs:
           python -m pip install --upgrade pip
           pip install build twine
       - name: Set package version from release tag
+        env:
+          DISPATCH_TAG: ${{ inputs.tag }}
         run: |
-          TAG="${GIT_TAG_NAME#v}"
+          if [ "${{ github.event_name }}" = "workflow_dispatch" ]; then
+            RAW_TAG="${DISPATCH_TAG}"
+          else
+            RAW_TAG="${GIT_TAG_NAME}"
+          fi
+          TAG="${RAW_TAG#v}"
+          echo "Building version ${TAG} from tag ${RAW_TAG}"
           echo "${TAG}" > VERSION
+      - name: Build package
+        run: python -m build
+      - name: Verify package version matches tag
+        run: |
+          EXPECTED="$(cat VERSION)"
+          ACTUAL="$(python - <<'PY'
+          import zipfile
+          from pathlib import Path
+          whl = next(Path("dist").glob("*.whl"))
+          with zipfile.ZipFile(whl) as z:
+              meta = next(n for n in z.namelist() if n.endswith("METADATA"))
+              for line in z.read(meta).decode().splitlines():
+                  if line.startswith("Version:"):
+                      print(line.split(": ", 1)[1].strip())
+                      break
+          PY
+          )"
+          # PEP 440 normalizes 1.4.1-rc1 -> 1.4.1rc1 in wheel metadata
+          NORMALIZED="${EXPECTED//-}"
+          if [ "${ACTUAL}" != "${EXPECTED}" ] && [ "${ACTUAL}" != "${NORMALIZED}" ]; then
+            echo "Version mismatch: expected ${EXPECTED} (or ${NORMALIZED}), got ${ACTUAL}"
+            exit 1
+          fi
+          echo "Verified wheel version ${ACTUAL} matches tag-derived ${EXPECTED}"
       - name: Build and publish
+        if: github.event_name == 'release' || inputs.dry_run == false
         env:
           TWINE_USERNAME: __token__
           TWINE_PASSWORD: ${{ secrets.PYPI_TOKEN }}
-        run: |
-          python -m build
-          twine upload dist/*
+        run: twine upload dist/*
