@@ -1,4 +1,4 @@
-from claim.models import Claim, ClaimService, ClaimItem, ClaimDedRem
+from claim.models import Claim, ClaimService, ClaimItem, ClaimDedRem, ClaimMutation
 from core.models.user import ClaimAdmin
 from claim.validations import get_claim_category
 from claim.utils import approved_amount
@@ -20,6 +20,7 @@ from medical_pricelist.test_helpers import (
     add_service_to_hf_pricelist,
     add_item_to_hf_pricelist,
 )
+from django.db import IntegrityError, transaction
 from insuree.test_helpers import create_test_insuree
 from policy.test_helpers import create_test_policy2
 from insuree.models import Insuree
@@ -49,7 +50,14 @@ def create_test_claim(custom_props=None, user=DummyUser(), product=None):
         insuree = Insuree.objects.filter(id=custom_props["insuree_id"]).first()
         insuree_in_props = True
     else:
-        insuree = create_test_insuree()
+        try:
+            with transaction.atomic():
+                insuree = create_test_insuree()
+        except IntegrityError:
+            # Reference data (e.g. Gender) may already exist when the full suite runs.
+            insuree = Insuree.objects.filter(validity_to__isnull=True).order_by("-id").first()
+            if insuree is None:
+                raise
         custom_props["insuree"] = insuree
 
     if not insuree_in_props and not product:
@@ -73,7 +81,7 @@ def create_test_claim(custom_props=None, user=DummyUser(), product=None):
             custom_props_ca = {"health_facility": custom_props["health_facility"]}
         else:
             custom_props_ca = {"health_facility_id": custom_props["health_facility_id"]}
-        custom_props["claim_admin"] = create_test_claim_admin(
+        custom_props["admin"] = create_test_claim_admin(
             custom_props=custom_props_ca
         )
 
@@ -191,8 +199,10 @@ def mark_test_claim_as_processed(claim, status=Claim.STATUS_CHECKED, audit_user_
 
 def delete_claim_with_itemsvc_dedrem_and_history(claim):
     # first delete old versions of the claim
-    ClaimDedRem.objects.filter(claim=claim).delete()
     old_claims = Claim.objects.filter(legacy_id=claim.id)
+    claim_ids = [claim.id] + list(old_claims.values_list("id", flat=True))
+    ClaimMutation.objects.filter(claim_id__in=claim_ids).delete()
+    ClaimDedRem.objects.filter(claim=claim).delete()
     ClaimItem.objects.filter(claim__in=old_claims).delete()
     ClaimService.objects.filter(claim__in=old_claims).delete()
     old_claims.delete()

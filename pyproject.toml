@@ -1,0 +1,60 @@
+[build-system]
+requires = ["setuptools>=68", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "openimis-be-claim"
+dynamic = ["version"]
+description = "The openIMIS Backend Claim reference module."
+readme = "README.md"
+license = "AGPL-3.0-or-later"
+authors = [
+    { name = "Xavier Gillmann", email = "xgillmann@bluesquarehub.com" },
+]
+requires-python = ">=3.8"
+classifiers = [
+    "Environment :: Web Environment",
+    "Framework :: Django",
+    "Framework :: Django :: 4.2",
+    "Intended Audience :: Developers",
+    "Operating System :: OS Independent",
+    "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3.8",
+    "Programming Language :: Python :: 3.9",
+    "Programming Language :: Python :: 3.10",
+    "Programming Language :: Python :: 3.11",
+]
+dependencies = [
+    "django>=3.2,<5",
+    "django-db-signals>=0.1.1,<1",
+    "djangorestframework>=3.14,<4",
+    "openimis-be-core",
+    "openimis-be-claim_batch",
+    "openimis-be-insuree",
+    "openimis-be-location",
+    "openimis-be-medical",
+    "openimis-be-policy",
+    "openimis-be-product",
+    "openimis-be-report",
+]
+
+[project.urls]
+Homepage = "https://openimis.org/"
+
+[tool.setuptools]
+include-package-data = true
+
+[tool.setuptools.dynamic]
+version = { file = "VERSION" }
+
+[tool.setuptools.packages.find]
+where = ["."]
+include = ["claim*"]
+
+[tool.setuptools.data-files]
+"locale/en/LC_MESSAGES" = ["locale/en/LC_MESSAGES/django.po"]
+
+# SonarCloud SCA: uv.lock pins PyPI deps; openimis-be-* siblings resolve via assembly at runtime.
+[tool.sonar]
+sources = "claim"
+exclusions = "**/migrations/**,**/static/**,**/media/**,**/tests/**"

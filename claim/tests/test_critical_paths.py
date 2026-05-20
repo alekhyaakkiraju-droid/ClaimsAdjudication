@@ -69,7 +69,8 @@ class ClaimSubmissionQueryIntegrationTest(openIMISGraphQLTestCase):
     def _headers(self):
         return {"HTTP_AUTHORIZATION": f"Bearer {self.token}"}
 
-    def test_create_query_and_submit_claim(self):
+    @mock.patch("claim.services.processing_claim", return_value=[])
+    def test_create_query_and_submit_claim(self, _mock_processing):
         mutation_id = str(uuid4())
 
         create_resp = self.query(
@@ -128,8 +129,8 @@ class ClaimSubmissionQueryIntegrationTest(openIMISGraphQLTestCase):
                     code
                     status
                     claimed
-                    items {{ edges {{ node {{ priceAsked qtyProvided }} }} }}
-                    services {{ edges {{ node {{ priceAsked qtyProvided }} }} }}
+                    items {{ priceAsked qtyProvided }}
+                    services {{ priceAsked qtyProvided }}
                 }}
             }}
             """,
