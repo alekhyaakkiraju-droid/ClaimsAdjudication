@@ -1,23 +1,23 @@
 import base64
+
 from django.conf import settings
-from django.core.exceptions import PermissionDenied
 from django.http import HttpResponse
 from rest_framework.decorators import api_view, permission_classes
+
+import core
 from location.models import LocationManager
 from report.services import ReportService
-from core.security import checkUserWithRights
-from .services import ClaimReportService
-from .reports import claim
+
 from .apps import ClaimConfig
 from .models import ClaimAttachment
-from django.utils.translation import gettext as _
-import core
+from .reports import claim
+from .rest_authorization import ClaimAttachRestPermission, ClaimPrintRestPermission
+from .services import ClaimReportService
 
 
 @api_view(["GET"])
+@permission_classes([ClaimPrintRestPermission])
 def print(request):
-    if not request.user.has_perms(ClaimConfig.claim_print_perms):
-        raise PermissionDenied(_("unauthorized"))
     report_service = ReportService(request.user)
     report_data_service = ClaimReportService(request.user)
     data = report_data_service.fetch(request.GET["uuid"])
@@ -25,13 +25,7 @@ def print(request):
 
 
 @api_view(["GET", "POST"])
-@permission_classes(
-    [
-        checkUserWithRights(
-            ClaimConfig.gql_query_claims_perms,
-        )
-    ]
-)
+@permission_classes([ClaimAttachRestPermission])
 def attach(request):
     queryset = ClaimAttachment.objects.filter(*core.filter_validity())
     if settings.ROW_SECURITY:
@@ -43,15 +37,13 @@ def attach(request):
         )
     attachment = queryset.filter(id=request.GET["id"]).first()
     if not attachment:
-        raise PermissionDenied(_("unauthorized"))
+        return HttpResponse(status=404)
 
     if ClaimConfig.claim_attachments_root_path and attachment.url is None:
-        response = HttpResponse(status=404)
-        return response
+        return HttpResponse(status=404)
 
     if not ClaimConfig.claim_attachments_root_path and attachment.document is None:
-        response = HttpResponse(status=404)
-        return response
+        return HttpResponse(status=404)
 
     response = HttpResponse(
         content_type=(
@@ -60,11 +52,10 @@ def attach(request):
     )
     response["Content-Disposition"] = "attachment; filename=%s" % attachment.filename
     if ClaimConfig.claim_attachments_root_path:
-        f = open(
+        with open(
             "%s/%s" % (ClaimConfig.claim_attachments_root_path, attachment.url), "rb"
-        )
-        response.write(f.read())
-        f.close()
+        ) as f:
+            response.write(f.read())
     else:
         response.write(base64.b64decode(attachment.document))
     return response
