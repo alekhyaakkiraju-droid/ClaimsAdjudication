@@ -69,7 +69,8 @@ class Feedback(core_models.VersionedModel):
         return queryset
 
 
-signal_claim_rejection = dispatch.Signal(["claim"])
+# Django 4.x: providing_args removed; receivers use keyword args (claim=...) in send().
+signal_claim_rejection = dispatch.Signal()
 
 
 class Claim(core_models.VersionedModel, core_models.ExtendableModel):
