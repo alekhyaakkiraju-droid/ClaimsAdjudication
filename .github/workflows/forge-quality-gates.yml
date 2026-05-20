@@ -100,6 +100,14 @@ jobs:
           python -m pip install bandit
           bandit -r claim -lll -q
 
+  sibling-compat:
+    name: Sibling compatibility (static)
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4
+      - name: Verify sibling dependency alignment
+        run: chmod +x scripts/verify-sibling-compatibility.sh && ./scripts/verify-sibling-compatibility.sh
+
   secret-scan:
     name: Secret scan (gitleaks)
     runs-on: ubuntu-24.04
@@ -115,7 +123,7 @@ jobs:
   gates-passed:
     name: All Forge gates passed
     runs-on: ubuntu-24.04
-    needs: [build, lint, typecheck, dependency-scan, sast, secret-scan]
+    needs: [build, lint, typecheck, dependency-scan, sast, secret-scan, sibling-compat]
     if: always()
     steps:
       - name: Require all upstream jobs
@@ -125,9 +133,10 @@ jobs:
           needs.typecheck.result != 'success' ||
           needs.dependency-scan.result != 'success' ||
           needs.sast.result != 'success' ||
-          needs.secret-scan.result != 'success'
+          needs.secret-scan.result != 'success' ||
+          needs.sibling-compat.result != 'success'
         run: |
-          echo "Gate results: build=${{ needs.build.result }} lint=${{ needs.lint.result }} typecheck=${{ needs.typecheck.result }} dependency-scan=${{ needs.dependency-scan.result }} sast=${{ needs.sast.result }} secret-scan=${{ needs.secret-scan.result }}"
+          echo "Gate results: build=${{ needs.build.result }} lint=${{ needs.lint.result }} typecheck=${{ needs.typecheck.result }} dependency-scan=${{ needs.dependency-scan.result }} sast=${{ needs.sast.result }} secret-scan=${{ needs.secret-scan.result }} sibling-compat=${{ needs.sibling-compat.result }}"
           exit 1
       - name: All gates passed
         if: >-
@@ -136,5 +145,6 @@ jobs:
           needs.typecheck.result == 'success' &&
           needs.dependency-scan.result == 'success' &&
           needs.sast.result == 'success' &&
-          needs.secret-scan.result == 'success'
+          needs.secret-scan.result == 'success' &&
+          needs.sibling-compat.result == 'success'
         run: echo "All Forge quality gates passed."
