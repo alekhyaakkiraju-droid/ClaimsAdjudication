@@ -28,6 +28,11 @@ from claim.models import (
     ClaimAttachmentType,
 )
 from claim.attachment_strategies import attachment_strategies_dict
+from claim.api_errors import (
+    claim_not_found_errors,
+    get_valid_claim,
+    mutation_error_list,
+)
 from claim.attachment_validation import validate_attachment_input
 
 from medical.models import Item, Service
@@ -377,13 +382,11 @@ class CreateClaimMutation(OpenIMISMutation):
                 }
             return None
         except Exception as exc:
-            return [
-                {
-                    "message": _("claim.mutation.failed_to_create_claim")
-                    % {"code": data["code"]},
-                    "detail": str(exc),
-                }
-            ]
+            return mutation_error_list(
+                _("claim.mutation.failed_to_create_claim") % {"code": data["code"]},
+                claim_code=data.get("code"),
+                exc=exc,
+            )
 
 
 class UpdateClaimMutation(OpenIMISMutation):
@@ -406,13 +409,11 @@ class UpdateClaimMutation(OpenIMISMutation):
             update_or_create_claim(data, user)
             return None
         except Exception as exc:
-            return [
-                {
-                    "message": _("claim.mutation.failed_to_update_claim")
-                    % {"code": data["code"]},
-                    "detail": str(exc),
-                }
-            ]
+            return mutation_error_list(
+                _("claim.mutation.failed_to_update_claim") % {"code": data["code"]},
+                claim_code=data.get("code"),
+                exc=exc,
+            )
 
 
 class CreateAttachmentMutation(OpenIMISMutation):
@@ -449,13 +450,12 @@ class CreateAttachmentMutation(OpenIMISMutation):
             create_attachment(claim.id, data)
             return None
         except Exception as exc:
-            return [
-                {
-                    "message": _("claim.mutation.failed_to_attach_document")
-                    % {"code": claim.code if claim else None},
-                    "detail": str(exc),
-                }
-            ]
+            return mutation_error_list(
+                _("claim.mutation.failed_to_attach_document")
+                % {"code": claim.code if claim else None},
+                claim_code=claim.code if claim else None,
+                exc=exc,
+            )
 
 
 class UpdateAttachmentMutation(OpenIMISMutation):
@@ -520,13 +520,13 @@ class UpdateAttachmentMutation(OpenIMISMutation):
             attachment.save()
             return None
         except Exception as exc:
-            return [
-                {
-                    "message": _("claim.mutation.failed_to_update_claim_attachment")
-                    % {"code": attachment.claim.code, "filename": attachment.filename},
-                    "detail": str(exc),
-                }
-            ]
+            code = attachment.claim.code if attachment else None
+            return mutation_error_list(
+                _("claim.mutation.failed_to_update_claim_attachment")
+                % {"code": code, "filename": getattr(attachment, "filename", None)},
+                claim_code=code,
+                exc=exc,
+            )
 
 
 class DeleteAttachmentMutation(OpenIMISMutation):
@@ -556,13 +556,13 @@ class DeleteAttachmentMutation(OpenIMISMutation):
             attachment.delete_history()
             return None
         except Exception as exc:
-            return [
-                {
-                    "message": _("claim.mutation.failed_to_delete_claim_attachment")
-                    % {"code": attachment.claim.code, "filename": attachment.filename},
-                    "detail": str(exc),
-                }
-            ]
+            code = attachment.claim.code if attachment else None
+            return mutation_error_list(
+                _("claim.mutation.failed_to_delete_claim_attachment")
+                % {"code": code, "filename": getattr(attachment, "filename", None)},
+                claim_code=code,
+                exc=exc,
+            )
 
 
 class ClaimSubmissionStatsMixin:
@@ -782,9 +782,13 @@ class DeliverClaimFeedbackMutation(OpenIMISMutation):
         claim = None
         try:
             require_mutation_permission(user, cls._mutation_class)
-            claim = Claim.objects.select_related("feedback").get(
-                uuid=data["claim_uuid"], validity_to__isnull=True
+            claim = (
+                Claim.objects.select_related("feedback")
+                .filter(uuid=data["claim_uuid"], validity_to__isnull=True)
+                .first()
             )
+            if claim is None:
+                return claim_not_found_errors(data["claim_uuid"])
             prev_feedback = claim.feedback
             prev_claim_id = claim.save_history()
             if prev_feedback:
@@ -806,13 +810,12 @@ class DeliverClaimFeedbackMutation(OpenIMISMutation):
             set_feedback_prompt_validity_to_to_current_date(claim.uuid)
             return None
         except Exception as exc:
-            return [
-                {
-                    "message": _("claim.mutation.failed_to_update_claim")
-                    % {"code": claim.code if claim else None},
-                    "detail": str(exc),
-                }
-            ]
+            return mutation_error_list(
+                _("claim.mutation.failed_to_update_claim")
+                % {"code": claim.code if claim else None},
+                claim_code=claim.code if claim else None,
+                exc=exc,
+            )
 
 
 class SelectClaimsForReviewMutation(OpenIMISMutation):
@@ -917,16 +920,9 @@ class SaveClaimReviewMutation(OpenIMISMutation):
         claim = None
         try:
             require_mutation_permission(user, cls._mutation_class)
-            claim = Claim.objects.get(
-                uuid=UUID(str(data["claim_uuid"])), validity_to__isnull=True
-            )
+            claim = get_valid_claim(claim_uuid=UUID(str(data["claim_uuid"])))
             if claim is None:
-                return [
-                    {
-                        "message": _("claim.validation.id_does_not_exist")
-                        % {"id": data["claim_uuid"]}
-                    }
-                ]
+                return claim_not_found_errors(data["claim_uuid"])
             claim.save_history()
             claim.adjustment = data.get("adjustment", None)
             items = data.pop("items") if "items" in data else []
@@ -1024,13 +1020,12 @@ class SaveClaimReviewMutation(OpenIMISMutation):
 
             return None
         except Exception as exc:
-            return [
-                {
-                    "message": _("claim.mutation.failed_to_update_claim")
-                    % {"code": claim.code if claim else None},
-                    "detail": str(exc),
-                }
-            ]
+            return mutation_error_list(
+                _("claim.mutation.failed_to_update_claim")
+                % {"code": claim.code if claim else None},
+                claim_code=claim.code if claim else None,
+                exc=exc,
+            )
 
 
 class ProcessClaimsMutation(OpenIMISMutation, ClaimSubmissionStatsMixin):
@@ -1162,16 +1157,14 @@ def set_claim_deleted(claim):
         claim.delete_history()
         return []
     except Exception as exc:
-        logger.debug(exc)
         return {
             "title": claim.code,
-            "list": [
-                {
-                    "message": _("claim.mutation.failed_to_change_status_of_claim")
-                    % {"code": claim.code},
-                    "detail": claim.uuid,
-                }
-            ],
+            "list": mutation_error_list(
+                _("claim.mutation.failed_to_change_status_of_claim")
+                % {"code": claim.code},
+                claim_code=claim.code,
+                exc=exc,
+            ),
         }
 
 

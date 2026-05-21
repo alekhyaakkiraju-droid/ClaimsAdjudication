@@ -18,6 +18,8 @@ REST authorization (WO-012): **[docs/REST_AUTHORIZATION.md](docs/REST_AUTHORIZAT
 
 Attachment validation (WO-013): **[docs/ATTACHMENT_VALIDATION.md](docs/ATTACHMENT_VALIDATION.md)** — `claim/attachment_validation.py`.
 
+Exception handling (WO-014): **[docs/EXCEPTION_HANDLING.md](docs/EXCEPTION_HANDLING.md)** — `claim/api_errors.py`.
+
 [![License: AGPL v3](https://img.shields.io/badge/License-AGPL%20v3-blue.svg)](https://www.gnu.org/licenses/agpl-3.0)
 
 ## Code climate (develop branch)
