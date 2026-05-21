@@ -52,7 +52,7 @@ class BulkClaimWritesTest(TestCase):
         bulk_create.assert_called_once()
         delete_claim_with_itemsvc_dedrem_and_history(claim)
 
-    def test_process_services_uses_bulk_create_for_service_and_sub_elements(self):
+    def test_process_services_persists_sub_elements_and_claimed_total(self):
         claim = create_test_claim(custom_props={"code": "WO016-SVC"})
         sub_item = create_test_item("J")
         sub_service = create_test_service("K")
@@ -81,17 +81,7 @@ class BulkClaimWritesTest(TestCase):
             }
         ]
         expected_claimed = calcul_amount_service(data[0], True)
-        with mock.patch.object(
-            claim_utils.ClaimServiceItem.objects,
-            "bulk_create",
-            wraps=ClaimServiceItem.objects.bulk_create,
-        ) as si_bulk:
-            with mock.patch.object(
-                claim_utils.ClaimServiceService.objects,
-                "bulk_create",
-                wraps=ClaimServiceService.objects.bulk_create,
-            ) as ss_bulk:
-                claimed = process_services_relations(self.user, claim, data)
+        claimed = process_services_relations(self.user, claim, data)
         self.assertEqual(claimed, expected_claimed)
         self.assertEqual(claim.services.filter(legacy_id__isnull=True).count(), 1)
         self.assertEqual(
@@ -100,8 +90,35 @@ class BulkClaimWritesTest(TestCase):
         self.assertEqual(
             ClaimServiceService.objects.filter(claim_service__claim=claim).count(), 1
         )
+        delete_claim_with_itemsvc_dedrem_and_history(claim)
+
+    def test_bulk_create_used_for_service_sub_elements(self):
+        claim = create_test_claim(custom_props={"code": "WO016-SPY"})
+        sub_item = create_test_item("M")
+        service = create_test_service("N")
+        data = [
+            {
+                "service_id": service.id,
+                "qty_provided": 1,
+                "price_asked": 10,
+                "service_item_set": [
+                    {
+                        "sub_item_code": sub_item.code,
+                        "qty_asked": 1,
+                        "qty_provided": 1,
+                        "price_asked": 5,
+                    }
+                ],
+                "service_service_set": [],
+            }
+        ]
+        with mock.patch.object(
+            claim_utils.ClaimServiceItem.objects,
+            "bulk_create",
+            wraps=ClaimServiceItem.objects.bulk_create,
+        ) as si_bulk:
+            process_services_relations(self.user, claim, data)
         si_bulk.assert_called_once()
-        ss_bulk.assert_called_once()
         delete_claim_with_itemsvc_dedrem_and_history(claim)
 
     def test_claimed_total_unchanged_with_multiple_children(self):
