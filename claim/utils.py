@@ -24,15 +24,99 @@ from django.db.models import (
 from django.db.models import DecimalField, ExpressionWrapper
 
 
+def _normalize_qty_asked(data_elt):
+    if "qty_asked" in data_elt and isinstance(data_elt["qty_asked"], float):
+        if math.isnan(data_elt["qty_asked"]):
+            data_elt["qty_asked"] = 0
+
+
+def _bulk_create_claim_items(claim_id, items_data):
+    """Bulk-insert claim items (WO-016)."""
+    objects = []
+    for item in items_data:
+        item["availability"] = True
+        objects.append(ClaimItem(claim_id=claim_id, **item))
+    if objects:
+        ClaimItem.objects.bulk_create(objects)
+
+
+def _bulk_create_claim_services(claim_id, services_data):
+    """Bulk-insert claim services and sub-elements (WO-016)."""
+    service_rows = []
+    pending_items = []
+    pending_services = []
+    item_codes = set()
+    service_codes = set()
+
+    for idx, service in enumerate(services_data):
+        service_item_set = service.pop("service_item_set", [])
+        service_service_set = service.pop("service_service_set", [])
+        service_rows.append(ClaimService(claim_id=claim_id, **service))
+        for service_item in service_item_set:
+            _normalize_qty_asked(service_item)
+            item_codes.add(service_item["sub_item_code"])
+            pending_items.append((idx, service_item))
+        for service_service in service_service_set:
+            _normalize_qty_asked(service_service)
+            service_codes.add(service_service["sub_service_code"])
+            pending_services.append((idx, service_service))
+
+    if not service_rows:
+        return
+
+    created_services = ClaimService.objects.bulk_create(service_rows)
+    items_by_code = {
+        i.code: i
+        for i in Item.objects.filter(code__in=item_codes, validity_to__isnull=True)
+    }
+    services_by_code = {
+        s.code: s
+        for s in Service.objects.filter(code__in=service_codes, validity_to__isnull=True)
+    }
+
+    service_item_objects = []
+    for idx, service_item in pending_items:
+        item = items_by_code.get(service_item["sub_item_code"])
+        service_item_objects.append(
+            ClaimServiceItem(
+                item=item,
+                claim_service=created_services[idx],
+                qty_displayed=service_item["qty_asked"],
+                qty_provided=service_item["qty_provided"],
+                price_asked=service_item["price_asked"],
+            )
+        )
+
+    service_service_objects = []
+    for idx, service_service in pending_services:
+        sub_service = services_by_code.get(service_service["sub_service_code"])
+        service_service_objects.append(
+            ClaimServiceService(
+                service=sub_service,
+                claim_service=created_services[idx],
+                qty_displayed=service_service["qty_asked"],
+                qty_provided=service_service["qty_provided"],
+                price_asked=service_service["price_asked"],
+            )
+        )
+
+    if service_item_objects:
+        ClaimServiceItem.objects.bulk_create(service_item_objects)
+    if service_service_objects:
+        ClaimServiceService.objects.bulk_create(service_service_objects)
+
+
 def process_child_relation(user, data_children, claim_id, children, create_hook):
     claimed = 0
     from core.utils import TimeUtils
 
     if __check_if_maximum_amount_overshoot(data_children, children):
         raise ValidationError(_("mutation.claim_item_service_maximum_amount_overshoot"))
-    for data_elt in data_children:
-        use_sub = create_hook == service_create_hook
 
+    use_sub = create_hook == service_create_hook
+    to_create = []
+
+    for data_elt in data_children:
         claimed += calcul_amount_service(data_elt, use_sub)
 
         elt_id = data_elt.pop("id") if "id" in data_elt else None
@@ -51,12 +135,18 @@ def process_child_relation(user, data_children, claim_id, children, create_hook)
         else:
             data_elt["validity_from"] = TimeUtils.now()
             data_elt["audit_user_id"] = user.id_for_audit
-            # Ensure claim id from func argument will be assigned
             data_elt.pop("claim_id", None)
-            # Should entered claim items/services have status passed assigned?
-            # Status is mandatory field, and it doesn't have default value in model
             data_elt["status"] = ClaimDetail.STATUS_PASSED
-            create_hook(claim_id, data_elt)
+            to_create.append(data_elt)
+
+    if to_create:
+        if create_hook == item_create_hook:
+            _bulk_create_claim_items(claim_id, to_create)
+        elif create_hook == service_create_hook:
+            _bulk_create_claim_services(claim_id, to_create)
+        else:
+            for data_elt in to_create:
+                create_hook(claim_id, data_elt)
 
     return claimed
 
