@@ -64,7 +64,15 @@ def _bulk_create_claim_services(claim_id, services_data):
     if not service_rows:
         return
 
-    created_services = ClaimService.objects.bulk_create(service_rows)
+    existing_count = ClaimService.objects.filter(claim_id=claim_id).count()
+    ClaimService.objects.bulk_create(service_rows)
+    created_services = list(
+        ClaimService.objects.filter(claim_id=claim_id).order_by("id")[
+            existing_count:
+        ]
+    )
+    if len(created_services) != len(service_rows):
+        raise ValidationError(_("claim.mutation.failed_to_persist_services"))
     items_by_code = {
         i.code: i
         for i in Item.objects.filter(code__in=item_codes, validity_to__isnull=True)
