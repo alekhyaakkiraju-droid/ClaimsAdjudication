@@ -27,7 +27,7 @@ class BulkClaimWritesTest(TestCase):
 
     def test_process_items_uses_bulk_create(self):
         claim = create_test_claim(custom_props={"code": "WO016-ITEMS"})
-        item = create_test_item("WO016I")
+        item = create_test_item("I")
         data = [
             {
                 "item_id": item.id,
@@ -50,9 +50,9 @@ class BulkClaimWritesTest(TestCase):
 
     def test_process_services_uses_bulk_create_for_service_and_sub_elements(self):
         claim = create_test_claim(custom_props={"code": "WO016-SVC"})
-        sub_item = create_test_item("WO016SUB")
-        sub_service = create_test_service("WO016SUBS")
-        service = create_test_service("WO016S")
+        sub_item = create_test_item("J")
+        sub_service = create_test_service("K")
+        service = create_test_service("L")
         data = [
             {
                 "service_id": service.id,
@@ -93,7 +93,7 @@ class BulkClaimWritesTest(TestCase):
 
     def test_claimed_total_unchanged_with_multiple_children(self):
         claim = create_test_claim(custom_props={"code": "WO016-TOTAL"})
-        item = create_test_item("WO016T")
+        item = create_test_item("T")
         data = [
             {"item_id": item.id, "qty_provided": 3, "price_asked": 40},
             {"item_id": item.id, "qty_provided": 2, "price_asked": 25},
