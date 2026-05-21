@@ -7,7 +7,7 @@ from unittest import mock
 from django.test import TestCase
 
 import claim.utils as claim_utils
-from claim.models import ClaimItem, ClaimService, ClaimServiceItem, ClaimServiceService
+from claim.models import ClaimItem, ClaimServiceItem, ClaimServiceService
 from claim.test_helpers import create_test_claim, delete_claim_with_itemsvc_dedrem_and_history
 from claim.utils import (
     calcul_amount_service,
