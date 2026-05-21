@@ -76,6 +76,9 @@ def mask_sensitive_value(key: str, value: Any) -> Any:
     if value is None:
         return None
     key_lower = key.lower()
+    # Large attachment payloads: redact by size (before generic PII suffix masking).
+    if key_lower == "document" and isinstance(value, str) and len(value) > 32:
+        return "<redacted:%s chars>" % len(value)
     if any(marker in key_lower for marker in PII_FIELD_MARKERS):
         if isinstance(value, str) and len(value) > 4:
             return "***" + value[-4:]
