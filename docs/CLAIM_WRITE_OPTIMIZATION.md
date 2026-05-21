@@ -4,8 +4,8 @@
 
 `process_child_relation` in `claim/utils.py` batches **new** child records:
 
-- **Items** — `ClaimItem.objects.bulk_create`
-- **Services** — parent `ClaimService` via `create()` (versioned model); sub-rows via `bulk_create` for `ClaimServiceItem` and `ClaimServiceService`
+- **Items** — `ClaimItem.objects.bulk_create` for new rows in `process_child_relation`
+- **Services** — still use `service_create_hook` per row (versioned `ClaimService` + sub-elements need individual `create()` for reliable FKs in CI/PostgreSQL)
 
 Updates to historized rows still use per-row `save()` (unchanged).
 

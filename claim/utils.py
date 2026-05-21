@@ -40,78 +40,6 @@ def _bulk_create_claim_items(claim_id, items_data):
         ClaimItem.objects.bulk_create(objects)
 
 
-def _bulk_create_claim_services(claim_id, services_data):
-    """
-    Persist claim services and sub-elements (WO-016).
-
-    Parent ClaimService rows use create() (versioned model / reliable PKs).
-    Sub-elements use bulk_create to reduce round-trips.
-    """
-    created_services = []
-    pending_items = []
-    pending_services = []
-    item_codes = set()
-    service_codes = set()
-
-    for idx, service in enumerate(services_data):
-        service_item_set = service.pop("service_item_set", [])
-        service_service_set = service.pop("service_service_set", [])
-        created_services.append(
-            ClaimService.objects.create(claim_id=claim_id, **service)
-        )
-        for service_item in service_item_set:
-            _normalize_qty_asked(service_item)
-            item_codes.add(service_item["sub_item_code"])
-            pending_items.append((idx, service_item))
-        for service_service in service_service_set:
-            _normalize_qty_asked(service_service)
-            service_codes.add(service_service["sub_service_code"])
-            pending_services.append((idx, service_service))
-
-    if not created_services:
-        return
-
-    items_by_code = {
-        i.code: i
-        for i in Item.objects.filter(code__in=item_codes, validity_to__isnull=True)
-    }
-    services_by_code = {
-        s.code: s
-        for s in Service.objects.filter(code__in=service_codes, validity_to__isnull=True)
-    }
-
-    service_item_objects = []
-    for idx, service_item in pending_items:
-        item = items_by_code.get(service_item["sub_item_code"])
-        service_item_objects.append(
-            ClaimServiceItem(
-                item=item,
-                claim_service_id=created_services[idx].pk,
-                qty_displayed=service_item["qty_asked"],
-                qty_provided=service_item["qty_provided"],
-                price_asked=service_item["price_asked"],
-            )
-        )
-
-    service_service_objects = []
-    for idx, service_service in pending_services:
-        sub_service = services_by_code.get(service_service["sub_service_code"])
-        service_service_objects.append(
-            ClaimServiceService(
-                service=sub_service,
-                claim_service_id=created_services[idx].pk,
-                qty_displayed=service_service["qty_asked"],
-                qty_provided=service_service["qty_provided"],
-                price_asked=service_service["price_asked"],
-            )
-        )
-
-    if service_item_objects:
-        ClaimServiceItem.objects.bulk_create(service_item_objects)
-    if service_service_objects:
-        ClaimServiceService.objects.bulk_create(service_service_objects)
-
-
 def process_child_relation(user, data_children, claim_id, children, create_hook):
     claimed = 0
     from core.utils import TimeUtils
@@ -149,7 +77,8 @@ def process_child_relation(user, data_children, claim_id, children, create_hook)
         if create_hook == item_create_hook:
             _bulk_create_claim_items(claim_id, to_create)
         elif create_hook == service_create_hook:
-            _bulk_create_claim_services(claim_id, to_create)
+            for data_elt in to_create:
+                service_create_hook(claim_id, data_elt)
         else:
             for data_elt in to_create:
                 create_hook(claim_id, data_elt)
