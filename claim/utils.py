@@ -41,8 +41,13 @@ def _bulk_create_claim_items(claim_id, items_data):
 
 
 def _bulk_create_claim_services(claim_id, services_data):
-    """Bulk-insert claim services and sub-elements (WO-016)."""
-    service_rows = []
+    """
+    Persist claim services and sub-elements (WO-016).
+
+    Parent ClaimService rows use create() (versioned model / reliable PKs).
+    Sub-elements use bulk_create to reduce round-trips.
+    """
+    created_services = []
     pending_items = []
     pending_services = []
     item_codes = set()
@@ -51,7 +56,9 @@ def _bulk_create_claim_services(claim_id, services_data):
     for idx, service in enumerate(services_data):
         service_item_set = service.pop("service_item_set", [])
         service_service_set = service.pop("service_service_set", [])
-        service_rows.append(ClaimService(claim_id=claim_id, **service))
+        created_services.append(
+            ClaimService.objects.create(claim_id=claim_id, **service)
+        )
         for service_item in service_item_set:
             _normalize_qty_asked(service_item)
             item_codes.add(service_item["sub_item_code"])
@@ -61,18 +68,9 @@ def _bulk_create_claim_services(claim_id, services_data):
             service_codes.add(service_service["sub_service_code"])
             pending_services.append((idx, service_service))
 
-    if not service_rows:
+    if not created_services:
         return
 
-    existing_count = ClaimService.objects.filter(claim_id=claim_id).count()
-    ClaimService.objects.bulk_create(service_rows)
-    created_services = list(
-        ClaimService.objects.filter(claim_id=claim_id).order_by("id")[
-            existing_count:
-        ]
-    )
-    if len(created_services) != len(service_rows):
-        raise ValidationError(_("claim.mutation.failed_to_persist_services"))
     items_by_code = {
         i.code: i
         for i in Item.objects.filter(code__in=item_codes, validity_to__isnull=True)

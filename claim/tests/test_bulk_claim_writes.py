@@ -79,8 +79,8 @@ class BulkClaimWritesTest(TestCase):
         ]
         expected_claimed = calcul_amount_service(data[0], True)
         with mock.patch.object(
-            ClaimService.objects, "bulk_create", wraps=ClaimService.objects.bulk_create
-        ) as svc_bulk:
+            ClaimService.objects, "create", wraps=ClaimService.objects.create
+        ) as svc_create:
             with mock.patch.object(
                 ClaimServiceItem.objects,
                 "bulk_create",
@@ -94,7 +94,7 @@ class BulkClaimWritesTest(TestCase):
                     claimed = process_services_relations(self.user, claim, data)
         self.assertEqual(claimed, expected_claimed)
         self.assertEqual(claim.services.filter(legacy_id__isnull=True).count(), 1)
-        svc_bulk.assert_called_once()
+        svc_create.assert_called_once()
         si_bulk.assert_called_once()
         ss_bulk.assert_called_once()
         delete_claim_with_itemsvc_dedrem_and_history(claim)
