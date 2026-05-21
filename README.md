@@ -20,6 +20,8 @@ Attachment validation (WO-013): **[docs/ATTACHMENT_VALIDATION.md](docs/ATTACHMEN
 
 Exception handling (WO-014): **[docs/EXCEPTION_HANDLING.md](docs/EXCEPTION_HANDLING.md)** — `claim/api_errors.py`.
 
+Audit governance (WO-015): **[docs/AUDIT_GOVERNANCE.md](docs/AUDIT_GOVERNANCE.md)** — `claim/audit_governance.py`.
+
 [![License: AGPL v3](https://img.shields.io/badge/License-AGPL%20v3-blue.svg)](https://www.gnu.org/licenses/agpl-3.0)
 
 ## Code climate (develop branch)
