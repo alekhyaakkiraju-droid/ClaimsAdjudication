@@ -14,6 +14,7 @@ from core.schema import OrderedDjangoFilterConnectionField, OfficerGQLType
 from .apps import ClaimConfig
 from .models import ClaimMutation, Claim
 from graphene_django.filter import DjangoFilterConnectionField
+from claim.api_errors import get_insuree_health_facility_for_fsp, get_valid_claim
 from claim.gql_authorization import require_query_permission
 from claim.models import ClaimAttachment
 # We do need all queries and mutations in the namespace here.
@@ -128,11 +129,7 @@ class Query(graphene.ObjectType):
 
     def resolve_claim(self, info, id=None, uuid=None, **kwargs):
         require_query_permission(info, "claim")
-
-        if id is not None:
-            return Claim.objects.get(id=id)
-        if uuid is not None:
-            return Claim.objects.get(uuid=uuid)
+        return get_valid_claim(claim_id=id, claim_uuid=uuid)
 
     def resolve_claims(self, info, **kwargs):
         class AttachmentStatusEnum(Enum):
@@ -231,15 +228,9 @@ class Query(graphene.ObjectType):
 
     def resolve_fsp_from_claim(self, info, **kwargs):
         require_query_permission(info, "fsp_from_claim")
-        result = (
-            Insuree.objects.filter(
-                chf_id=kwargs["insuree_code"],
-                *Insuree.filter_validity(validity=kwargs["date_claimed"]),
-            )
-            .first()
-            .health_facility
+        return get_insuree_health_facility_for_fsp(
+            kwargs["insuree_code"], kwargs["date_claimed"]
         )
-        return result
 
     def resolve_claim_with_same_diagnosis(self, info, **kwargs):
         require_query_permission(info, "claim_with_same_diagnosis")
