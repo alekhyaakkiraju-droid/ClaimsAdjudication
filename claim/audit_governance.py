@@ -80,8 +80,6 @@ def mask_sensitive_value(key: str, value: Any) -> Any:
         if isinstance(value, str) and len(value) > 4:
             return "***" + value[-4:]
         return "***"
-    if key_lower == "document" and isinstance(value, str) and len(value) > 32:
-        return "<redacted:%s chars>" % len(value)
     return value
 
 
