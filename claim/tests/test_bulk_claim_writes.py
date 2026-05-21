@@ -6,6 +6,7 @@ from unittest import mock
 
 from django.test import TestCase
 
+import claim.utils as claim_utils
 from claim.models import ClaimItem, ClaimService, ClaimServiceItem, ClaimServiceService
 from claim.test_helpers import create_test_claim, delete_claim_with_itemsvc_dedrem_and_history
 from claim.utils import (
@@ -41,7 +42,9 @@ class BulkClaimWritesTest(TestCase):
             },
         ]
         with mock.patch.object(
-            ClaimItem.objects, "bulk_create", wraps=ClaimItem.objects.bulk_create
+            claim_utils.ClaimItem.objects,
+            "bulk_create",
+            wraps=ClaimItem.objects.bulk_create,
         ) as bulk_create:
             claimed = process_items_relations(self.user, claim, data)
         self.assertEqual(claimed, 110)
@@ -79,22 +82,24 @@ class BulkClaimWritesTest(TestCase):
         ]
         expected_claimed = calcul_amount_service(data[0], True)
         with mock.patch.object(
-            ClaimService.objects, "create", wraps=ClaimService.objects.create
-        ) as svc_create:
+            claim_utils.ClaimServiceItem.objects,
+            "bulk_create",
+            wraps=ClaimServiceItem.objects.bulk_create,
+        ) as si_bulk:
             with mock.patch.object(
-                ClaimServiceItem.objects,
+                claim_utils.ClaimServiceService.objects,
                 "bulk_create",
-                wraps=ClaimServiceItem.objects.bulk_create,
-            ) as si_bulk:
-                with mock.patch.object(
-                    ClaimServiceService.objects,
-                    "bulk_create",
-                    wraps=ClaimServiceService.objects.bulk_create,
-                ) as ss_bulk:
-                    claimed = process_services_relations(self.user, claim, data)
+                wraps=ClaimServiceService.objects.bulk_create,
+            ) as ss_bulk:
+                claimed = process_services_relations(self.user, claim, data)
         self.assertEqual(claimed, expected_claimed)
         self.assertEqual(claim.services.filter(legacy_id__isnull=True).count(), 1)
-        svc_create.assert_called_once()
+        self.assertEqual(
+            ClaimServiceItem.objects.filter(claim_service__claim=claim).count(), 1
+        )
+        self.assertEqual(
+            ClaimServiceService.objects.filter(claim_service__claim=claim).count(), 1
+        )
         si_bulk.assert_called_once()
         ss_bulk.assert_called_once()
         delete_claim_with_itemsvc_dedrem_and_history(claim)

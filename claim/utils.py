@@ -86,7 +86,7 @@ def _bulk_create_claim_services(claim_id, services_data):
         service_item_objects.append(
             ClaimServiceItem(
                 item=item,
-                claim_service=created_services[idx],
+                claim_service_id=created_services[idx].pk,
                 qty_displayed=service_item["qty_asked"],
                 qty_provided=service_item["qty_provided"],
                 price_asked=service_item["price_asked"],
@@ -99,7 +99,7 @@ def _bulk_create_claim_services(claim_id, services_data):
         service_service_objects.append(
             ClaimServiceService(
                 service=sub_service,
-                claim_service=created_services[idx],
+                claim_service_id=created_services[idx].pk,
                 qty_displayed=service_service["qty_asked"],
                 qty_provided=service_service["qty_provided"],
                 price_asked=service_service["price_asked"],
