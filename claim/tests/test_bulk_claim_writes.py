@@ -40,8 +40,9 @@ class BulkClaimWritesTest(TestCase):
                 "price_asked": 10,
             },
         ]
-        with mock.patch.object(ClaimItem.objects, "bulk_create") as bulk_create:
-            bulk_create.side_effect = ClaimItem.objects.bulk_create
+        with mock.patch.object(
+            ClaimItem.objects, "bulk_create", wraps=ClaimItem.objects.bulk_create
+        ) as bulk_create:
             claimed = process_items_relations(self.user, claim, data)
         self.assertEqual(claimed, 110)
         self.assertEqual(claim.items.filter(legacy_id__isnull=True).count(), 2)
@@ -77,12 +78,19 @@ class BulkClaimWritesTest(TestCase):
             }
         ]
         expected_claimed = calcul_amount_service(data[0], True)
-        with mock.patch.object(ClaimService.objects, "bulk_create") as svc_bulk:
-            with mock.patch.object(ClaimServiceItem.objects, "bulk_create") as si_bulk:
-                with mock.patch.object(ClaimServiceService.objects, "bulk_create") as ss_bulk:
-                    svc_bulk.side_effect = ClaimService.objects.bulk_create
-                    si_bulk.side_effect = ClaimServiceItem.objects.bulk_create
-                    ss_bulk.side_effect = ClaimServiceService.objects.bulk_create
+        with mock.patch.object(
+            ClaimService.objects, "bulk_create", wraps=ClaimService.objects.bulk_create
+        ) as svc_bulk:
+            with mock.patch.object(
+                ClaimServiceItem.objects,
+                "bulk_create",
+                wraps=ClaimServiceItem.objects.bulk_create,
+            ) as si_bulk:
+                with mock.patch.object(
+                    ClaimServiceService.objects,
+                    "bulk_create",
+                    wraps=ClaimServiceService.objects.bulk_create,
+                ) as ss_bulk:
                     claimed = process_services_relations(self.user, claim, data)
         self.assertEqual(claimed, expected_claimed)
         self.assertEqual(claim.services.filter(legacy_id__isnull=True).count(), 1)
