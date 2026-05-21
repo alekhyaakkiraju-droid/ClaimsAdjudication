@@ -32,6 +32,15 @@ DEFAULT_CFG = {
     "additional_diagnosis_number_allowed": 4,
     "claim_max_restore": None,
     "allowed_domains_attachments": [],
+    "attachment_validation_enabled": True,
+    "attachment_max_size_bytes": 10485760,
+    "attachment_allowed_mime_types": [
+        "application/pdf",
+        "image/jpeg",
+        "image/png",
+        "image/gif",
+        "text/plain",
+    ],
     "verify_quantities": False,
 }
 
@@ -74,6 +83,9 @@ class ClaimConfig(AppConfig):
         None  # Currently code supports 4 diagnoses maximum, going above will not work
     )
     allowed_domains_attachments = None
+    attachment_validation_enabled = True
+    attachment_max_size_bytes = None
+    attachment_allowed_mime_types = None
 
     def __load_config(self, cfg):
         for field in cfg:

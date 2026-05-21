@@ -16,6 +16,8 @@ GraphQL authorization (WO-011): **[docs/GRAPHQL_AUTHORIZATION.md](docs/GRAPHQL_A
 
 REST authorization (WO-012): **[docs/REST_AUTHORIZATION.md](docs/REST_AUTHORIZATION.md)** — `claim/rest_authorization.py`.
 
+Attachment validation (WO-013): **[docs/ATTACHMENT_VALIDATION.md](docs/ATTACHMENT_VALIDATION.md)** — `claim/attachment_validation.py`.
+
 [![License: AGPL v3](https://img.shields.io/badge/License-AGPL%20v3-blue.svg)](https://www.gnu.org/licenses/agpl-3.0)
 
 ## Code climate (develop branch)

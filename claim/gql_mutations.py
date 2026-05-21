@@ -1,9 +1,6 @@
 import logging
 from uuid import uuid4, UUID
 import pathlib
-import base64
-from urllib.parse import urlparse
-
 import graphene
 from django.db.models import Count, Case, When, IntegerField, Q, Prefetch
 
@@ -31,6 +28,7 @@ from claim.models import (
     ClaimAttachmentType,
 )
 from claim.attachment_strategies import attachment_strategies_dict
+from claim.attachment_validation import validate_attachment_input
 
 from medical.models import Item, Service
 
@@ -276,15 +274,14 @@ class CreateClaimInputType(ClaimInputType):
     attachments = graphene.List(ClaimAttachmentInputType, required=False)
 
 
-def create_file(date, claim_id, document):
+def create_file(date, claim_id, document_bytes: bytes):
     date_iso = date.isoformat()
     root = ClaimConfig.claim_attachments_root_path
     file_dir = "%s/%s/%s/%s" % (date_iso[0:4], date_iso[5:7], date_iso[8:10], claim_id)
     file_path = "%s/%s" % (file_dir, uuid4())
     pathlib.Path("%s/%s" % (root, file_dir)).mkdir(parents=True, exist_ok=True)
-    f = open("%s/%s" % (root, file_path), "xb")
-    f.write(base64.b64decode(document))
-    f.close()
+    with open("%s/%s" % (root, file_path), "xb") as f:
+        f.write(document_bytes)
     return file_path
 
 
@@ -297,13 +294,12 @@ def create_attachment(claim_id, data):
     data['module'] = 'claim'
     if not data.get('predefined_type'):
         data['predefined_type'] = 'default'  # default to adjust for FHIR predefined is fallbacked to default
+
+    decoded_document = validate_attachment_input(
+        data, strategies=attachment_strategies_dict.keys()
+    )
+
     if general_type == GeneralClaimAttachmentType.URL:
-        parsed_url = urlparse(data["url"])
-        if ClaimConfig.allowed_domains_attachments and not any(
-            domain in parsed_url.path
-            for domain in ClaimConfig.allowed_domains_attachments
-        ):
-            raise ValidationError(_("mutation.attachment_url_domain_not_allowed"))
         if data["predefined_type"] in attachment_strategies_dict:
             data["url"] = attachment_strategies_dict[data["predefined_type"]].handler(
                 data
@@ -316,8 +312,10 @@ def create_attachment(claim_id, data):
         )
     elif general_type == GeneralClaimAttachmentType.FILE:
         if ClaimConfig.claim_attachments_root_path:
-            # don't use data date as it may be updated by user afterwards!
-            data["url"] = create_file(now, claim_id, data.pop("document"))
+            if decoded_document is None:
+                raise ValidationError(_("claim.validation.attachment_document_required"))
+            data["url"] = create_file(now, claim_id, decoded_document)
+            data.pop("document", None)
         data["predefined_type"] = ClaimAttachmentType.objects.get(
             validity_to__isnull=True,
             claim_general_type="FILE",
@@ -487,18 +485,14 @@ class UpdateAttachmentMutation(OpenIMISMutation):
                 raise PermissionDenied(_("unauthorized"))
             general_type = data["general_type"]
             data["module"] = "claim"
+            data["claim_id"] = attachment.claim_id
             from core import datetime
 
             now = datetime.datetime.now()
+            decoded_document = validate_attachment_input(
+                data, strategies=attachment_strategies_dict.keys()
+            )
             if general_type == GeneralClaimAttachmentType.URL:
-                parsed_url = urlparse(data["url"])
-                if ClaimConfig.allowed_domains_attachments and not any(
-                    domain in parsed_url.path
-                    for domain in ClaimConfig.allowed_domains_attachments
-                ):
-                    raise ValidationError(
-                        _("mutation.attachment_url_domain_not_allowed")
-                    )
                 if data["predefined_type"] in attachment_strategies_dict:
                     data["url"] = attachment_strategies_dict[
                         data["predefined_type"]
@@ -511,8 +505,10 @@ class UpdateAttachmentMutation(OpenIMISMutation):
                 )
             elif general_type == GeneralClaimAttachmentType.FILE:
                 if ClaimConfig.claim_attachments_root_path:
-                    # don't use data date as it may be updated by user afterwards!
-                    data["url"] = create_file(now, data["claim_id"], data.pop("document"))
+                    if decoded_document is None:
+                        raise ValidationError(_("claim.validation.attachment_document_required"))
+                    data["url"] = create_file(now, data["claim_id"], decoded_document)
+                    data.pop("document", None)
                 data["predefined_type"] = ClaimAttachmentType.objects.get(
                     validity_to__isnull=True,
                     claim_general_type="FILE",
