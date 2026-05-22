@@ -580,6 +580,8 @@ def validate_number_of_additional_diagnoses(incoming_data):
 
 
 def set_claim_submitted(claim, errors, user):
+    from claim.audit_governance import record_claim_audit_event
+
     try:
         claim.audit_user_id_submit = user.id_for_audit
         if errors:
@@ -592,18 +594,25 @@ def set_claim_submitted(claim, errors, user):
             claim.submit_stamp = TimeUtils.now()
             claim.category = get_claim_category(claim)
         claim.save()
+        record_claim_audit_event(
+            "claim.submit",
+            user,
+            claim=claim,
+            context={"rejected": bool(errors)},
+        )
         return []
     except Exception as exc:
-        logger.debug(exc)
+        logger.exception("set_claim_submitted failed for claim %s", claim.code)
+        from claim.api_errors import mutation_error_list
+
         return {
             "title": claim.code,
-            "list": [
-                {
-                    "message": _("claim.mutation.failed_to_change_status_of_claim")
-                    % {"code": claim.code},
-                    "detail": claim.uuid,
-                }
-            ],
+            "list": mutation_error_list(
+                _("claim.mutation.failed_to_change_status_of_claim")
+                % {"code": claim.code},
+                claim_code=claim.code,
+                exc=exc,
+            ),
         }
 
 
@@ -731,6 +740,8 @@ def with_relative_prices(claim):
 
 
 def set_claims_status(uuids, field, status, audit_data=None, user=None):
+    from claim.audit_governance import operation_for_status_change, record_claim_audit_event
+
     errors = []
     claims = Claim.objects.filter(uuid__in=uuids, *Claim.filter_validity())
     remaining_uuid = list(set(map(str.upper, uuids)))
@@ -749,6 +760,15 @@ def set_claims_status(uuids, field, status, audit_data=None, user=None):
                 for k, v in audit_data.items():
                     setattr(claim, k, v)
             claim.save()
+            if user is not None:
+                operation = operation_for_status_change(field, status)
+                if operation:
+                    record_claim_audit_event(
+                        operation,
+                        user,
+                        claim=claim,
+                        context={field: status},
+                    )
         except Exception as exc:
             errors += [
                 {
