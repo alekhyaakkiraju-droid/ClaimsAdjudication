@@ -2,7 +2,7 @@ import logging
 from uuid import uuid4, UUID
 import pathlib
 import graphene
-from django.db.models import Count, Case, When, IntegerField, Q, Prefetch
+from django.db.models import Count, Case, When, IntegerField, Prefetch
 
 from core.models import MutationLog
 from .apps import ClaimConfig
@@ -33,6 +33,7 @@ from claim.api_errors import (
     get_valid_claim,
     mutation_error_list,
 )
+from claim.submission_pipeline import claim_submission_queryset
 from claim.audit_governance import record_claim_audit_event, record_mutation_audit
 from claim.attachment_validation import validate_attachment_input
 
@@ -693,26 +694,8 @@ class SubmitClaimsMutation(OpenIMISMutation, ClaimSubmissionStatsMixin):
         service = ClaimSubmitService(user)
         c_errors = []
 
-        claims = (
-            Claim.objects.filter(uuid__in=uuids, validity_to__isnull=True)
-            .prefetch_related(
-                Prefetch(
-                    "items",
-                    queryset=ClaimItem.objects.filter(
-                        *ClaimItem.filter_validity(),
-                        Q(Q(rejection_reason=0) | Q(rejection_reason__isnull=True)),
-                    ),
-                )
-            )
-            .prefetch_related(
-                Prefetch(
-                    "services",
-                    queryset=ClaimService.objects.filter(
-                        *ClaimService.filter_validity(),
-                        Q(Q(rejection_reason=0) | Q(rejection_reason__isnull=True)),
-                    ),
-                )
-            )
+        claims = claim_submission_queryset().filter(
+            uuid__in=uuids, validity_to__isnull=True
         )
         remaining_uuid = list(map(str.upper, uuids))
 

@@ -210,17 +210,28 @@ class ClaimSubmitService(object):
         create_claim_service = ClaimCreateService(self.user)
         entered_claim = create_claim_service.enter_claim(claim)
         submitted_claim, errors = self.submit_claim(
-            entered_claim, rule_engine_validation
+            entered_claim,
+            rule_engine_validation,
+            skip_hf_validation=True,
         )
         return submitted_claim
 
     @register_service_signal("claim.submit_claim")
-    def submit_claim(self, claim: Claim, rule_engine_validation=True):
+    def submit_claim(
+        self,
+        claim: Claim,
+        rule_engine_validation=True,
+        skip_hf_validation=False,
+    ):
         """
         Submission based on the GQL SubmitClaimMutation.async_mutate
         """
+        from claim.submission_pipeline import load_claim_for_submission
+
         self._validate_submit_permissions()
-        self._validate_user_hf(claim.health_facility.code)
+        claim = load_claim_for_submission(claim)
+        if not skip_hf_validation:
+            self._validate_user_hf(claim.health_facility.code)
         claim.save_history()
         validation_errors = processing_claim(
             claim, self.user, False, rule_engine_validation
