@@ -3,6 +3,7 @@ WO-018: Claim read-path eager loading and query-count tests.
 """
 
 import json
+import string
 from uuid import uuid4
 
 from django.db import connection
@@ -23,10 +24,10 @@ from graphql_jwt.shortcuts import get_token
 from medical.test_helpers import create_test_item, create_test_service
 
 
-def _create_claim_with_children(*, code_prefix: str):
-    claim = create_test_claim(custom_props={"code": f"{code_prefix}-{uuid4().hex[:8]}"})
-    item = create_test_item(code_prefix)
-    service = create_test_service(code_prefix)
+def _create_claim_with_children(*, claim_code: str, item_service_code: str):
+    claim = create_test_claim(custom_props={"code": claim_code})
+    item = create_test_item(item_service_code)
+    service = create_test_service(item_service_code)
     create_test_claimitem(
         claim,
         custom_props={
@@ -63,7 +64,10 @@ class ClaimReadQuerysetPrefetchTest(TestCase):
         cls.user = create_test_interactive_user(username="wo018-prefetch")
 
     def test_claim_read_queryset_prefetches_nested_relations(self):
-        claim = _create_claim_with_children(code_prefix="WO018PF")
+        claim = _create_claim_with_children(
+            claim_code=f"WO018-PF-{uuid4().hex[:8]}",
+            item_service_code="P",
+        )
         loaded = claim_read_queryset(Claim.objects.filter(id=claim.id)).first()
 
         self.assertTrue(claim_has_read_prefetch(loaded))
@@ -100,7 +104,10 @@ class ClaimListQueryCountTest(openIMISGraphQLTestCase):
         cls.token = get_token(cls.user, BaseTestContext(user=cls.user))
         cls.claims = []
         for idx in range(10):
-            claim = _create_claim_with_children(code_prefix=f"WO018Q{idx}")
+            claim = _create_claim_with_children(
+                claim_code=f"WO018-Q{idx}-{uuid4().hex[:8]}",
+                item_service_code=string.ascii_uppercase[idx],
+            )
             cls.claims.append(claim)
 
     @classmethod
