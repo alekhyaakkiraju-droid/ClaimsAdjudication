@@ -24,15 +24,33 @@ from django.db.models import (
 from django.db.models import DecimalField, ExpressionWrapper
 
 
+def _normalize_qty_asked(data_elt):
+    if "qty_asked" in data_elt and isinstance(data_elt["qty_asked"], float):
+        if math.isnan(data_elt["qty_asked"]):
+            data_elt["qty_asked"] = 0
+
+
+def _bulk_create_claim_items(claim_id, items_data):
+    """Bulk-insert claim items (WO-016)."""
+    objects = []
+    for item in items_data:
+        item["availability"] = True
+        objects.append(ClaimItem(claim_id=claim_id, **item))
+    if objects:
+        ClaimItem.objects.bulk_create(objects)
+
+
 def process_child_relation(user, data_children, claim_id, children, create_hook):
     claimed = 0
     from core.utils import TimeUtils
 
     if __check_if_maximum_amount_overshoot(data_children, children):
         raise ValidationError(_("mutation.claim_item_service_maximum_amount_overshoot"))
-    for data_elt in data_children:
-        use_sub = create_hook == service_create_hook
 
+    use_sub = create_hook == service_create_hook
+    to_create = []
+
+    for data_elt in data_children:
         claimed += calcul_amount_service(data_elt, use_sub)
 
         elt_id = data_elt.pop("id") if "id" in data_elt else None
@@ -51,12 +69,19 @@ def process_child_relation(user, data_children, claim_id, children, create_hook)
         else:
             data_elt["validity_from"] = TimeUtils.now()
             data_elt["audit_user_id"] = user.id_for_audit
-            # Ensure claim id from func argument will be assigned
             data_elt.pop("claim_id", None)
-            # Should entered claim items/services have status passed assigned?
-            # Status is mandatory field, and it doesn't have default value in model
             data_elt["status"] = ClaimDetail.STATUS_PASSED
-            create_hook(claim_id, data_elt)
+            to_create.append(data_elt)
+
+    if to_create:
+        if create_hook == item_create_hook:
+            _bulk_create_claim_items(claim_id, to_create)
+        elif create_hook == service_create_hook:
+            for data_elt in to_create:
+                service_create_hook(claim_id, data_elt)
+        else:
+            for data_elt in to_create:
+                create_hook(claim_id, data_elt)
 
     return claimed
 

@@ -22,6 +22,8 @@ Exception handling (WO-014): **[docs/EXCEPTION_HANDLING.md](docs/EXCEPTION_HANDL
 
 Audit governance (WO-015): **[docs/AUDIT_GOVERNANCE.md](docs/AUDIT_GOVERNANCE.md)** — `claim/audit_governance.py`.
 
+Claim write optimization (WO-016): **[docs/CLAIM_WRITE_OPTIMIZATION.md](docs/CLAIM_WRITE_OPTIMIZATION.md)** — bulk child persistence in `claim/utils.py`.
+
 [![License: AGPL v3](https://img.shields.io/badge/License-AGPL%20v3-blue.svg)](https://www.gnu.org/licenses/agpl-3.0)
 
 ## Code climate (develop branch)
