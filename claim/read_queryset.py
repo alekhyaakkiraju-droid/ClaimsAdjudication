@@ -9,18 +9,8 @@ from django.db.models import Prefetch
 from claim.models import Claim, ClaimAttachment, ClaimItem, ClaimMutation, ClaimService
 
 
-def claim_read_queryset(queryset=None):
-    """Eager-load relations used by claims/claim/claim_history resolvers and ClaimGQLType."""
-    if queryset is None:
-        queryset = Claim.objects
-    return queryset.select_related(
-        "health_facility",
-        "insuree",
-        "admin",
-        "icd",
-        "batch_run",
-        "feedback",
-    ).prefetch_related(
+def _claim_read_prefetches():
+    return (
         Prefetch(
             "items",
             queryset=ClaimItem.objects.filter(
@@ -49,6 +39,31 @@ def claim_read_queryset(queryset=None):
             ),
         ),
     )
+
+
+def apply_claim_read_prefetches(queryset=None):
+    """Prefetch nested claim relations without select_related.
+
+    Use before gql_optimizer.query() — select_related on insuree/health_facility
+    conflicts with gql_optimizer field deferral.
+    """
+    if queryset is None:
+        queryset = Claim.objects
+    return queryset.prefetch_related(*_claim_read_prefetches())
+
+
+def claim_read_queryset(queryset=None):
+    """Eager-load relations used by single-claim lookups (e.g. get_valid_claim)."""
+    if queryset is None:
+        queryset = Claim.objects
+    return queryset.select_related(
+        "health_facility",
+        "insuree",
+        "admin",
+        "icd",
+        "batch_run",
+        "feedback",
+    ).prefetch_related(*_claim_read_prefetches())
 
 
 def claim_has_read_prefetch(claim: Claim) -> bool:

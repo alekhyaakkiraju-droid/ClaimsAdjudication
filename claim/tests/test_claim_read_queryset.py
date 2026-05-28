@@ -11,7 +11,11 @@ from django.test import TestCase
 from django.test.utils import CaptureQueriesContext
 
 from claim.models import Claim, ClaimAttachment, GeneralClaimAttachmentType
-from claim.read_queryset import claim_has_read_prefetch, claim_read_queryset
+from claim.read_queryset import (
+    apply_claim_read_prefetches,
+    claim_has_read_prefetch,
+    claim_read_queryset,
+)
 from claim.test_helpers import (
     create_test_claim,
     create_test_claimitem,
@@ -57,6 +61,11 @@ def _create_claim_with_children(*, claim_code: str, item_service_code: str):
     return claim
 
 
+def _delete_claim_with_attachment(claim):
+    ClaimAttachment.objects.filter(claim=claim).delete()
+    delete_claim_with_itemsvc_dedrem_and_history(claim)
+
+
 class ClaimReadQuerysetPrefetchTest(TestCase):
     @classmethod
     def setUpClass(cls):
@@ -83,12 +92,17 @@ class ClaimReadQuerysetPrefetchTest(TestCase):
         self.assertEqual(len(attachments), 1)
         self.assertIsNotNone(hf_code)
         self.assertIsNotNone(insuree_id)
-        delete_claim_with_itemsvc_dedrem_and_history(claim)
+        _delete_claim_with_attachment(claim)
 
     def test_claim_read_queryset_includes_select_and_prefetch_lookups(self):
         qs = claim_read_queryset()
         self.assertIn("health_facility", qs.query.select_related)
         self.assertIn("insuree", qs.query.select_related)
+        self.assertTrue(qs._prefetch_related_lookups)
+
+    def test_apply_claim_read_prefetches_only_adds_prefetches(self):
+        qs = apply_claim_read_prefetches(Claim.objects.all())
+        self.assertFalse(qs.query.select_related)
         self.assertTrue(qs._prefetch_related_lookups)
 
 
@@ -113,7 +127,7 @@ class ClaimListQueryCountTest(openIMISGraphQLTestCase):
     @classmethod
     def tearDownClass(cls):
         for claim in cls.claims:
-            delete_claim_with_itemsvc_dedrem_and_history(claim)
+            _delete_claim_with_attachment(claim)
         super().tearDownClass()
 
     def _headers(self):
