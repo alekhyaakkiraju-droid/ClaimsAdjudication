@@ -9,7 +9,12 @@ from django.test import TestCase
 from claim.models import Claim
 from claim.services import ClaimSubmitService
 from claim.submission_pipeline import claim_submission_queryset, load_claim_for_submission
-from claim.test_helpers import create_test_claim, delete_claim_with_itemsvc_dedrem_and_history
+from claim.test_helpers import (
+    create_test_claim,
+    create_test_claimitem,
+    create_test_claimservice,
+    delete_claim_with_itemsvc_dedrem_and_history,
+)
 from core.test_helpers import create_test_interactive_user
 from medical.test_helpers import create_test_item, create_test_service
 
@@ -24,19 +29,23 @@ class SubmissionPipelinePrefetchTest(TestCase):
         claim = create_test_claim(custom_props={"code": "WO017-PF"})
         item = create_test_item("P")
         service = create_test_service("P")
-        claim.items.create(
-            item_id=item.id,
-            qty_provided=1,
-            price_asked=10,
-            audit_user_id=-1,
-            validity_from=claim.validity_from,
+        create_test_claimitem(
+            claim,
+            custom_props={
+                "item": item,
+                "qty_provided": 1,
+                "price_asked": 10,
+                "validity_from": claim.validity_from,
+            },
         )
-        claim.services.create(
-            service_id=service.id,
-            qty_provided=1,
-            price_asked=20,
-            audit_user_id=-1,
-            validity_from=claim.validity_from,
+        create_test_claimservice(
+            claim,
+            custom_props={
+                "service": service,
+                "qty_provided": 1,
+                "price_asked": 20,
+                "validity_from": claim.validity_from,
+            },
         )
 
         loaded = load_claim_for_submission(claim)
