@@ -26,6 +26,8 @@ Claim write optimization (WO-016): **[docs/CLAIM_WRITE_OPTIMIZATION.md](docs/CLA
 
 Submission pipeline (WO-017): **[docs/SUBMISSION_PIPELINE_OPTIMIZATION.md](docs/SUBMISSION_PIPELINE_OPTIMIZATION.md)** — `claim/submission_pipeline.py`.
 
+Claim read optimization (WO-018): **[docs/CLAIM_READ_OPTIMIZATION.md](docs/CLAIM_READ_OPTIMIZATION.md)** — `claim/read_queryset.py`.
+
 [![License: AGPL v3](https://img.shields.io/badge/License-AGPL%20v3-blue.svg)](https://www.gnu.org/licenses/agpl-3.0)
 
 ## Code climate (develop branch)

@@ -15,6 +15,7 @@ from .apps import ClaimConfig
 from .models import ClaimMutation, Claim
 from graphene_django.filter import DjangoFilterConnectionField
 from claim.api_errors import get_insuree_health_facility_for_fsp, get_valid_claim
+from claim.read_queryset import claim_read_queryset
 from claim.gql_authorization import require_query_permission
 from claim.models import ClaimAttachment
 # We do need all queries and mutations in the namespace here.
@@ -207,7 +208,7 @@ class Query(graphene.ObjectType):
 
         if len(filters) == 0 and not code_is_not:
             query = query.all()
-        return gql_optimizer.query(query, info)
+        return gql_optimizer.query(claim_read_queryset(query), info)
 
     def resolve_claim_attachments(self, info, **kwargs):
         require_query_permission(info, "claim_attachments")
@@ -272,7 +273,7 @@ class Query(graphene.ObjectType):
         if filters:
             query = query.filter(*filters).distinct()
 
-        return gql_optimizer.query(query, info)
+        return gql_optimizer.query(claim_read_queryset(query), info)
 
 
 class Mutation(graphene.ObjectType):

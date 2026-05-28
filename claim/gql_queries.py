@@ -92,6 +92,9 @@ class ClaimGQLType(DjangoObjectType):
 
     def resolve_attachments_count(self, info):
         require_query_permission(info, "claim_gql_type")
+        prefetched = getattr(self, "_prefetched_objects_cache", {})
+        if "attachments" in prefetched:
+            return len(prefetched["attachments"])
         return (
             self.attachments.filter(legacy_id__isnull=True)
             .filter(validity_to__isnull=True)
@@ -100,18 +103,30 @@ class ClaimGQLType(DjangoObjectType):
 
     def resolve_items(self, info):
         require_query_permission(info, "claim_gql_type")
+        prefetched = getattr(self, "_prefetched_objects_cache", {})
+        if "items" in prefetched:
+            return prefetched["items"]
         return self.items.filter(legacy_id__isnull=True).filter(
             validity_to__isnull=True
         )
 
     def resolve_services(self, info):
         require_query_permission(info, "claim_gql_type")
+        prefetched = getattr(self, "_prefetched_objects_cache", {})
+        if "services" in prefetched:
+            return prefetched["services"]
         return self.services.filter(legacy_id__isnull=True).filter(
             validity_to__isnull=True
         )
 
     def resolve_client_mutation_id(self, info):
         require_query_permission(info, "claim_gql_type")
+        prefetched = getattr(self, "_prefetched_objects_cache", {})
+        if "mutations" in prefetched:
+            mutations = prefetched["mutations"]
+            return (
+                mutations[0].mutation.client_mutation_id if mutations else None
+            )
         claim_mutation = (
             self.mutations.select_related("mutation").filter(mutation__status=0).first()
         )
