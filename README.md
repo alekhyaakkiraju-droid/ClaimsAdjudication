@@ -24,6 +24,8 @@ Audit governance (WO-015): **[docs/AUDIT_GOVERNANCE.md](docs/AUDIT_GOVERNANCE.md
 
 Claim write optimization (WO-016): **[docs/CLAIM_WRITE_OPTIMIZATION.md](docs/CLAIM_WRITE_OPTIMIZATION.md)** — bulk child persistence in `claim/utils.py`.
 
+Submission pipeline (WO-017): **[docs/SUBMISSION_PIPELINE_OPTIMIZATION.md](docs/SUBMISSION_PIPELINE_OPTIMIZATION.md)** — `claim/submission_pipeline.py`.
+
 [![License: AGPL v3](https://img.shields.io/badge/License-AGPL%20v3-blue.svg)](https://www.gnu.org/licenses/agpl-3.0)
 
 ## Code climate (develop branch)
