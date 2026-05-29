@@ -623,7 +623,7 @@ def set_claim_submitted(claim, errors, user):
 
 
 #
-def processing_claim(claim, user, is_process=False, validate=True):
+def processing_claim(claim, user, is_process=False, validate=True, policies=None):
     """
     Process a claim by validating it, assigning products, and handling deductions/remunerations.
 
@@ -645,11 +645,12 @@ def processing_claim(claim, user, is_process=False, validate=True):
         - If `is_process` is True, updates the claim status to processed or valuated.
     """
     errors = []
-    target_date = get_claim_target_date(claim)
-    if claim.insuree is not None:
-        policies = get_valid_policies_qs(claim.insuree.id, target_date)
-    else:
-        policies = None
+    if policies is None:
+        target_date = get_claim_target_date(claim)
+        if claim.insuree is not None:
+            policies = get_valid_policies_qs(claim.insuree.id, target_date)
+        else:
+            policies = None
     if validate and claim.status != Claim.STATUS_CHECKED:
         errors = validate_claim(
             claim,
@@ -682,6 +683,59 @@ def processing_claim(claim, user, is_process=False, validate=True):
             )
     if is_process:
         errors += set_claim_processed_or_valuated(claim, errors, user)
+    return errors
+
+
+def process_claims_batch(uuids, user):
+    """Process multiple claims with shared prefetch and policy caching."""
+    from claim.audit_governance import record_claim_audit_event
+    from claim.batch_processing import (
+        BatchPolicyCache,
+        load_claims_for_processing,
+        missing_processing_uuids,
+    )
+
+    errors = []
+    uuid_list = uuids or []
+    claims = load_claims_for_processing(uuid_list)
+    policy_cache = BatchPolicyCache(claims)
+
+    for claim in claims:
+        logger.debug("ProcessClaimsMutation: processing %s", claim.uuid)
+        claim.save_history()
+        claim.audit_user_id_process = user.id_for_audit
+        logger.debug("ProcessClaimsMutation: validating claim %s", claim.uuid)
+        c_errors = processing_claim(
+            claim,
+            user,
+            is_process=True,
+            policies=policy_cache.policies_for(claim),
+        )
+        logger.debug(
+            "ProcessClaimsMutation: claim %s set processed or valuated", claim.uuid
+        )
+        if c_errors:
+            errors.append({"title": claim.code, "list": c_errors})
+        record_claim_audit_event(
+            "claim.process",
+            user,
+            claim=claim,
+            context={"errors": len(c_errors)},
+        )
+
+    remaining = missing_processing_uuids(uuid_list, claims)
+    if remaining:
+        errors += {
+            "title": _("error"),
+            "list": [
+                {
+                    "message": _("claim.validation.id_does_not_exist")
+                    % {"id": ",".join(remaining)}
+                }
+            ],
+        }
+    if len(errors) == 1:
+        errors = errors[0]["list"]
     return errors
 
 

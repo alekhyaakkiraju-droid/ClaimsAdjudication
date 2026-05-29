@@ -48,6 +48,7 @@ from claim.services import (
     update_or_create_claim as service_update_or_create_claim,
     ClaimSubmitService,
     processing_claim as service_processing_claim,
+    process_claims_batch,
     create_feedback_prompt as service_create_feedback_prompt,
     update_claims_dedrems,
     set_feedback_prompt_validity_to_to_current_date,
@@ -1088,54 +1089,9 @@ class ProcessClaimsMutation(OpenIMISMutation, ClaimSubmissionStatsMixin):
     @classmethod
     def async_mutate(cls, user, **data):
         require_mutation_permission(user, cls._mutation_class)
-        errors = []
         uuids = data.get("uuids", None)
         client_mutation_id = data.get("client_mutation_id", None)
-        claims = (
-            Claim.objects.filter(uuid__in=uuids)
-            .prefetch_related(
-                Prefetch("items", queryset=ClaimItem.objects.filter(*ClaimItem.filter_validity()))
-            )
-            .prefetch_related(
-                Prefetch(
-                    "services", queryset=ClaimService.objects.filter(*ClaimService.filter_validity())
-                )
-            )
-        )
-        remaining_uuid = list(map(str.upper, uuids))
-        for claim in claims:
-            remaining_uuid.remove(claim.uuid.upper())
-            logger.debug("ProcessClaimsMutation: processing %s", claim.uuid)
-            c_errors = []
-            claim.save_history()
-            claim.audit_user_id_process = user.id_for_audit
-            logger.debug("ProcessClaimsMutation: validating claim %s", claim.uuid)
-            c_errors += processing_claim(claim, user, True)
-            logger.debug(
-                "ProcessClaimsMutation: claim %s set processed or valuated", claim.uuid
-            )
-
-            if c_errors:
-                errors.append({"title": claim.code, "list": c_errors})
-            claim.save()
-            record_claim_audit_event(
-                "claim.process",
-                user,
-                claim=claim,
-                context={"errors": len(c_errors)},
-            )
-        if len(remaining_uuid):
-            errors += {
-                "title": _("error"),
-                "list": [
-                    {
-                        "message": _("claim.validation.id_does_not_exist")
-                        % {"id": ",".join(remaining_uuid)}
-                    }
-                ],
-            }
-        if len(errors) == 1:
-            errors = errors[0]["list"]
+        errors = process_claims_batch(uuids, user)
         cls.add_submission_stats_to_mutation_log(client_mutation_id, uuids)
         return errors
 
