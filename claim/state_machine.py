@@ -20,7 +20,12 @@ STATUS_LABELS = {
 # Valid forward transitions observed in services, validations, and mutations.
 ALLOWED_TRANSITIONS: dict[int, frozenset[int]] = {
     Claim.STATUS_ENTERED: frozenset(
-        {Claim.STATUS_CHECKED, Claim.STATUS_REJECTED}
+        {
+            Claim.STATUS_CHECKED,
+            Claim.STATUS_REJECTED,
+            Claim.STATUS_VALUATED,
+            Claim.STATUS_PROCESSED,
+        }
     ),
     Claim.STATUS_CHECKED: frozenset(
         {
