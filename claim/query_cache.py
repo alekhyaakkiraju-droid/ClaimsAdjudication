@@ -109,7 +109,7 @@ def claim_list_cache_key(filters: dict) -> str:
 def cached_or_load(key: str, loader: Callable[[], T], *, timeout: int) -> T:
     cached = safe_cache_get(key)
     if cached is not None:
-        return cached  # type: ignore[return-value]
+        return cached
     result = loader()
     safe_cache_set(key, result, timeout)
     return result
