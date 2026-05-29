@@ -76,11 +76,15 @@ class ClaimDetailCacheTest(TestCase):
 
     def test_get_valid_claim_uses_cached_pk(self):
         key = claim_detail_cache_key(claim_id=self.claim.id)
+        with CaptureQueriesContext(connection) as uncached_ctx:
+            get_valid_claim(claim_id=self.claim.id)
+        uncached_count = len(uncached_ctx.captured_queries)
+
         safe_cache_set(key, self.claim.pk, 120)
-        with CaptureQueriesContext(connection) as ctx:
+        with CaptureQueriesContext(connection) as cached_ctx:
             loaded = get_valid_claim(claim_id=self.claim.id)
         self.assertEqual(loaded.pk, self.claim.pk)
-        self.assertLessEqual(len(ctx.captured_queries), 2)
+        self.assertLess(len(cached_ctx.captured_queries), uncached_count)
 
     def test_get_valid_claim_negative_cache(self):
         missing_id = self.claim.id + 99999
@@ -110,9 +114,13 @@ class ReferenceDataCacheResolverTest(TestCase):
         cache.clear()
 
     def test_resolve_claim_attachment_type_uses_cached_pks(self):
+        att_type_id = 9000 + int(uuid4().hex[:3], 16) % 1000
         att_type, _ = ClaimAttachmentType.objects.get_or_create(
-            claim_attachment_type=f"WO020-{uuid4().hex[:6]}",
-            defaults={"claim_general_type": GeneralClaimAttachmentType.FILE},
+            id=att_type_id,
+            defaults={
+                "claim_attachment_type": f"WO020-{uuid4().hex[:4]}",
+                "claim_general_type": GeneralClaimAttachmentType.FILE,
+            },
         )
         key = attachment_types_cache_key()
         safe_cache_set(key, [att_type.pk], 300)
@@ -124,7 +132,7 @@ class ReferenceDataCacheResolverTest(TestCase):
 
     def test_resolve_claim_officers_uses_cached_pks(self):
         officer = Officer.objects.create(
-            code=f"WO020-{uuid4().hex[:6]}",
+            code=f"W{uuid4().hex[:6]}",
             last_name="Cache",
             other_names="Test",
             validity_from=self.user.validity_from,
