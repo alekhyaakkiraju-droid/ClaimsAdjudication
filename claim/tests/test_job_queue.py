@@ -55,7 +55,7 @@ class EnqueueProcessClaimsTest(TestCase):
 
     def test_process_claims_batch_or_enqueue_sync_by_default(self):
         user = DummyUser()
-        with mock.patch("claim.services.process_claims_batch", return_value=[]) as mock_batch:
+        with mock.patch("claim.services.processing.process_claims_batch", return_value=[]) as mock_batch:
             errors, job = process_claims_batch_or_enqueue(["one"], user)
         mock_batch.assert_called_once()
         self.assertEqual(errors, [])
@@ -63,7 +63,7 @@ class EnqueueProcessClaimsTest(TestCase):
 
     def test_process_claims_batch_or_enqueue_async_when_over_threshold(self):
         user = DummyUser()
-        with mock.patch("claim.services.process_claims_batch") as mock_batch:
+        with mock.patch("claim.services.processing.process_claims_batch") as mock_batch:
             errors, job = process_claims_batch_or_enqueue(["one", "two"], user)
         mock_batch.assert_not_called()
         self.assertEqual(errors, [])
@@ -76,7 +76,7 @@ class ClaimJobWorkerTest(TestCase):
     def test_process_next_job_runs_handler_and_marks_completed(self):
         user = DummyUser()
         job = enqueue_process_claims([str(uuid4())], user)
-        with mock.patch("claim.services.process_claims_batch", return_value=[]) as mock_batch:
+        with mock.patch("claim.services.processing.process_claims_batch", return_value=[]) as mock_batch:
             finished = process_next_job()
         self.assertIsNotNone(finished)
         self.assertEqual(finished.status, ClaimJob.STATUS_COMPLETED)
@@ -91,7 +91,7 @@ class ClaimJobWorkerTest(TestCase):
             max_retries=1,
         )
         with mock.patch(
-            "claim.services.process_claims_batch",
+            "claim.jobs.process_claims_batch",
             side_effect=RuntimeError("boom"),
         ):
             first = process_next_job()
