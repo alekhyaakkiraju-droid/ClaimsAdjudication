@@ -6,7 +6,7 @@ from unittest import mock
 from uuid import uuid4
 
 from django.core.exceptions import ValidationError
-from django.test import TestCase
+from django.test import SimpleTestCase, TestCase
 
 from claim.apps import ClaimConfig
 from claim.claim_restore import (
@@ -22,45 +22,39 @@ from claim.test_helpers import (
     delete_claim_with_itemsvc_dedrem_and_history,
     mark_test_claim_as_processed,
 )
-from core.test_helpers import create_test_interactive_user, create_test_role
 
 
-class ClaimRestorePermissionTest(TestCase):
+class _RestorePermUser:
+    """Minimal user stub for restore permission checks."""
+
+    def __init__(self, allowed: bool):
+        self.id = 1
+        self.id_for_audit = 1
+        self._allowed = allowed
+
+    def has_perms(self, perms):
+        return self._allowed and list(perms) == ["111012"]
+
+
+class ClaimRestorePermissionTest(SimpleTestCase):
+    @mock.patch.object(ClaimConfig, "gql_mutation_restore_claims_perms", ["111012"])
     def test_require_restore_permission_denies_without_rights(self):
-        user = create_test_interactive_user(username=f"wo024-no-restore-{uuid4().hex[:8]}")
-        with mock.patch.object(ClaimConfig, "gql_mutation_restore_claims_perms", ["111012"]):
-            with self.assertRaises(ValidationError) as ctx:
-                require_restore_permission(user)
+        with self.assertRaises(ValidationError) as ctx:
+            require_restore_permission(_RestorePermUser(allowed=False))
         self.assertIn("no_restore_rights", str(ctx.exception))
 
+    @mock.patch.object(ClaimConfig, "gql_mutation_restore_claims_perms", ["111012"])
     def test_require_restore_permission_allows_authorized_user(self):
-        role = create_test_role(
-            perm_names=["111012"],
-            name=f"WO024Restore-{uuid4().hex[:8]}",
-        )
-        user = create_test_interactive_user(
-            username=f"wo024-restore-{uuid4().hex[:8]}",
-            roles=[role.id],
-        )
-        with mock.patch.object(ClaimConfig, "gql_mutation_restore_claims_perms", ["111012"]):
-            require_restore_permission(user)
+        require_restore_permission(_RestorePermUser(allowed=True))
 
 
 class ClaimRestoreValidationTest(TestCase):
     def setUp(self):
-        self.authorized_user = create_test_interactive_user(
-            username=f"wo024-auth-{uuid4().hex[:8]}",
-            roles=[
-                create_test_role(
-                    perm_names=["111012"],
-                    name=f"WO024RestoreRole-{uuid4().hex[:8]}",
-                ).id
-            ],
-        )
+        self.user = _RestorePermUser(allowed=True)
         with mock.patch.object(ClaimConfig, "gql_mutation_restore_claims_perms", ["111012"]):
             self.source = create_test_claim(
                 custom_props={"code": f"WO024-SRC-{uuid4().hex[:8]}"},
-                user=self.authorized_user,
+                user=DummyUser(),
             )
         mark_test_claim_as_processed(self.source, status=Claim.STATUS_REJECTED)
 
@@ -71,7 +65,7 @@ class ClaimRestoreValidationTest(TestCase):
 
     def _validate(self, restore_uuid, user=None):
         with mock.patch.object(ClaimConfig, "gql_mutation_restore_claims_perms", ["111012"]):
-            return validate_restore_request(restore_uuid, user or self.authorized_user)
+            return validate_restore_request(restore_uuid, user or self.user)
 
     def test_validate_restore_returns_rejected_source(self):
         source = self._validate(self.source.uuid)
@@ -95,7 +89,7 @@ class ClaimRestoreValidationTest(TestCase):
     def test_validate_restore_rejects_non_rejected_source(self):
         checked = create_test_claim(
             custom_props={"code": f"WO024-CHK-{uuid4().hex[:8]}"},
-            user=self.authorized_user,
+            user=DummyUser(),
         )
         mark_test_claim_as_processed(checked, status=Claim.STATUS_CHECKED)
         try:
@@ -113,11 +107,11 @@ class ClaimRestoreValidationTest(TestCase):
                         "code": f"WO024-R1-{uuid4().hex[:8]}",
                         "restore": self.source,
                     },
-                    user=self.authorized_user,
+                    user=self.user,
                 )
                 self.assertEqual(count_restores_for_source(self.source), 1)
                 with self.assertRaises(ValidationError) as ctx:
-                    validate_restore_request(self.source.uuid, self.authorized_user)
+                    validate_restore_request(self.source.uuid, self.user)
                 self.assertIn("max_restored_claim", str(ctx.exception))
                 delete_claim_with_itemsvc_dedrem_and_history(restored)
 
@@ -130,7 +124,7 @@ class ClaimRestoreValidationTest(TestCase):
                             "code": f"WO024-R{idx}-{uuid4().hex[:8]}",
                             "restore": self.source,
                         },
-                        user=self.authorized_user,
+                        user=self.user,
                     )
                     delete_claim_with_itemsvc_dedrem_and_history(restored)
                 self.assertEqual(count_restores_for_source(self.source), 0)
@@ -142,7 +136,7 @@ class ClaimRestoreValidationTest(TestCase):
                     "code": f"WO024-INV-{uuid4().hex[:8]}",
                     "restore": self.source,
                 },
-                user=self.authorized_user,
+                user=self.user,
             )
             from core.utils import TimeUtils
 
@@ -154,17 +148,10 @@ class ClaimRestoreValidationTest(TestCase):
 
 class ClaimRestoreIntegrationTest(TestCase):
     def test_claim_create_links_restore_fk(self):
-        role = create_test_role(
-            perm_names=["111012"],
-            name=f"WO024Create-{uuid4().hex[:8]}",
-        )
-        user = create_test_interactive_user(
-            username=f"wo024-create-{uuid4().hex[:8]}",
-            roles=[role.id],
-        )
+        user = _RestorePermUser(allowed=True)
         source = create_test_claim(
             custom_props={"code": f"WO024-LNK-{uuid4().hex[:8]}"},
-            user=user,
+            user=DummyUser(),
         )
         mark_test_claim_as_processed(source, status=Claim.STATUS_REJECTED)
         try:
