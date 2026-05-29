@@ -30,6 +30,7 @@ from claim.utils import (
     get_claim_target_date,
     approved_amount,
 )
+from claim.state_machine import apply_claim_status
 from .validations import validate_claim, get_claim_category
 from django.db.models import Subquery, F, OuterRef, Sum, FloatField
 from django.db.models.functions import Coalesce
@@ -259,13 +260,13 @@ class ClaimSubmitService(object):
             )
 
     def __submit_to_rejected(self, claim: Claim):
-        claim.status = Claim.STATUS_REJECTED
+        apply_claim_status(claim, Claim.STATUS_REJECTED)
         claim.save()
         return claim
 
     def __submit_to_checked(self, claim: Claim):
         claim.approved = approved_amount(claim)
-        claim.status = Claim.STATUS_CHECKED
+        apply_claim_status(claim, Claim.STATUS_CHECKED)
         from core.utils import TimeUtils
 
         claim.submit_stamp = TimeUtils.now()
@@ -596,10 +597,10 @@ def set_claim_submitted(claim, errors, user):
     try:
         claim.audit_user_id_submit = user.id_for_audit
         if errors:
-            claim.status = Claim.STATUS_REJECTED
+            apply_claim_status(claim, Claim.STATUS_REJECTED)
         else:
             claim.approved = approved_amount(claim)
-            claim.status = Claim.STATUS_CHECKED
+            apply_claim_status(claim, Claim.STATUS_CHECKED)
             from core.utils import TimeUtils
 
             claim.submit_stamp = TimeUtils.now()
@@ -702,15 +703,15 @@ def submit_claim(claim, user):
 def set_claim_processed_or_valuated(claim, errors, user):
     try:
         if errors:
-            claim.status = Claim.STATUS_REJECTED
+            apply_claim_status(claim, Claim.STATUS_REJECTED)
         if claim.status == Claim.STATUS_CHECKED:
             claim.approved = approved_amount(claim)
             if with_relative_prices(claim):
-                claim.status = Claim.STATUS_PROCESSED
+                apply_claim_status(claim, Claim.STATUS_PROCESSED)
                 claim.process_stamp = datetime.datetime.now()
                 claim.date_processed = datetime.date.today()
             else:
-                claim.status = Claim.STATUS_VALUATED
+                apply_claim_status(claim, Claim.STATUS_VALUATED)
                 claim.valuated = claim.approved
             claim.audit_user_id_process = user.id_for_audit
             from core.utils import TimeUtils

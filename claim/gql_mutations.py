@@ -18,6 +18,7 @@ from claim.gql_authorization import (
     require_mutation_permission,
 )
 from claim.gql_queries import ClaimGQLType
+from claim.state_machine import apply_claim_status
 from claim.models import (
     Claim,
     Feedback,
@@ -1032,7 +1033,7 @@ class SaveClaimReviewMutation(OpenIMISMutation):
                     setattr(claimservice, "price_adjusted", claimed)
             claim.audit_user_id_review = user.id_for_audit
             if all_rejected:
-                claim.status = Claim.STATUS_REJECTED
+                apply_claim_status(claim, Claim.STATUS_REJECTED)
             submit_review = data.get("submit_review", False)
             if submit_review:
                 claim.review_status = Claim.REVIEW_DELIVERED
