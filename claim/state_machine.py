@@ -35,8 +35,8 @@ ALLOWED_TRANSITIONS: dict[int, frozenset[int]] = {
         }
     ),
     Claim.STATUS_REJECTED: frozenset(),
-    Claim.STATUS_PROCESSED: frozenset(),
-    Claim.STATUS_VALUATED: frozenset(),
+    Claim.STATUS_PROCESSED: frozenset({Claim.STATUS_REJECTED}),
+    Claim.STATUS_VALUATED: frozenset({Claim.STATUS_REJECTED}),
 }
 
 
