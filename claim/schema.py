@@ -8,10 +8,10 @@ from core.schema import (
     signal_mutation_module_validate,
     signal_mutation_module_after_mutating,
 )
-from django.db.models import OuterRef, Subquery, Avg, Q
+from django.db.models import Subquery, Q
+from claim.diagnosis_variance import build_diagnosis_variance_filter
 import graphene_django_optimizer as gql_optimizer
 from core.schema import OrderedDjangoFilterConnectionField, OfficerGQLType
-from .apps import ClaimConfig
 from .models import ClaimMutation, Claim
 from graphene_django.filter import DjangoFilterConnectionField
 from claim.api_errors import get_insuree_health_facility_for_fsp, get_valid_claim
@@ -175,24 +175,13 @@ class Query(graphene.ObjectType):
             from core import datetime, datetimedelta
 
             last_year = datetime.date.today() + datetimedelta(years=-1)
-            diag_avg = (
-                Claim.objects.filter(*Claim.filter_validity(**kwargs))
-                .filter(date_claimed__gt=last_year)
-                .values("icd__code")
-                .filter(icd__code=OuterRef("icd__code"))
-                .annotate(diag_avg=Avg("approved"))
-                .values("diag_avg")
-            )
-            variance_filter = Q(claimed__gt=(1 + variance / 100) * Subquery(diag_avg))
-            if not ClaimConfig.gql_query_claim_diagnosis_variance_only_on_existing:
-                diags = (
-                    Claim.objects.filter(*Claim.filter_validity(**kwargs))
-                    .filter(date_claimed__gt=last_year)
-                    .values("icd__code")
-                    .distinct()
+            filters.append(
+                build_diagnosis_variance_filter(
+                    variance,
+                    validity_filters=Claim.filter_validity(**kwargs),
+                    last_year_date=last_year,
                 )
-                variance_filter = Q(variance_filter | ~Q(icd__code__in=diags))
-            filters.append(variance_filter)
+            )
         # filtered already in get_queryser
         # query = query.filter(
         #   LocationManager().build_user_location_filter_query(
