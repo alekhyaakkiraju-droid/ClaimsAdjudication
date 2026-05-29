@@ -17,3 +17,9 @@ Eager loading for GraphQL claim list/detail paths to eliminate N+1 queries on ne
 ## Tests
 
 - `claim/tests/test_claim_read_queryset.py` — prefetch cache hits and bounded query count for multi-claim list resolution
+
+## Diagnosis variance (WO-019)
+
+- `claim/diagnosis_variance.py` — pre-aggregates diagnosis average approved amounts in one query and builds a disjunctive `Q` filter instead of a correlated subquery per claim row; optional 5-minute Django cache for aggregate results
+- `claim/schema.py` — `resolve_claims` uses `build_diagnosis_variance_filter()` when `diagnosisVariance` is set
+- `claim/tests/test_diagnosis_variance.py` — semantic filter tests, single-query aggregate verification, cache hit, and bounded GraphQL query count
