@@ -22,7 +22,6 @@ from claim.query_cache import (
     safe_cache_get,
     safe_cache_set,
 )
-from claim.schema import Query
 from claim.test_helpers import (
     create_test_claim,
     delete_claim_with_itemsvc_dedrem_and_history,
