@@ -31,6 +31,7 @@ FEEDBACK_ALLOWED_TRANSITIONS: dict[int, frozenset[int]] = {
         {
             Claim.FEEDBACK_NOT_SELECTED,
             Claim.FEEDBACK_SELECTED,
+            Claim.FEEDBACK_DELIVERED,
             Claim.FEEDBACK_BYPASSED,
         }
     ),
@@ -56,6 +57,7 @@ REVIEW_ALLOWED_TRANSITIONS: dict[int, frozenset[int]] = {
         {
             Claim.REVIEW_NOT_SELECTED,
             Claim.REVIEW_SELECTED,
+            Claim.REVIEW_DELIVERED,
             Claim.REVIEW_BYPASSED,
         }
     ),

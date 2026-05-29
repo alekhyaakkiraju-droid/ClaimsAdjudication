@@ -17,10 +17,10 @@ from claim.models import Claim
 from claim.services import set_claims_status
 from claim.test_helpers import (
     create_test_claim,
-    create_test_insuree,
-    create_test_officer,
     delete_claim_with_itemsvc_dedrem_and_history,
 )
+from core.test_helpers import create_test_officer
+from insuree.test_helpers import create_test_insuree
 
 
 class FeedbackReviewStateMachineUnitTest(TestCase):
