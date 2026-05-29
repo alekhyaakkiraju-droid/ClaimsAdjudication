@@ -62,7 +62,7 @@ class SubmissionPipelinePrefetchTest(TestCase):
         delete_claim_with_itemsvc_dedrem_and_history(claim)
 
     @mock.patch("claim.services.ClaimSubmitService._validate_user_hf")
-    @mock.patch("claim.services.processing_claim", return_value=[])
+    @mock.patch("claim.services.submit.processing_claim", return_value=[])
     def test_enter_and_submit_skips_duplicate_hf_validation(
         self, _mock_processing, mock_validate_hf
     ):

@@ -106,7 +106,7 @@ class ProcessClaimsBatchTest(TestCase):
         mark_test_claim_as_processed(claim, status=Claim.STATUS_CHECKED)
         user = DummyUser()
         try:
-            with mock.patch("claim.services.processing_claim", return_value=[]) as mock_process:
+            with mock.patch("claim.services.processing.processing_claim", return_value=[]) as mock_process:
                 process_claims_batch([str(claim.uuid)], user)
             mock_process.assert_called_once()
             _, kwargs = mock_process.call_args
