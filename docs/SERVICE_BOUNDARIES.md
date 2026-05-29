@@ -11,7 +11,8 @@ Split mixed responsibilities from monolithic module files into focused service a
 | Processing & batch | `claim/services/processing.py` |
 | Feedback/review status | `claim/services/status.py` |
 | Print/report data | `claim/services/report.py` |
-| XML submit helpers (WO-030 follow-up) | `claim/services/xml_submit.py` |
+| XML serialization | `claim/serializers/xml_serializer.py` |
+| XML submit re-exports | `claim/services/xml_submit.py` |
 | Attachment persistence | `claim/attachment_service.py` |
 | GraphQL query resolvers | `claim/schema_resolvers.py` |
 | Validation constants | `claim/validations/constants.py` |

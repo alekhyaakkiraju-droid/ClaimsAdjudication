@@ -43,7 +43,7 @@ from claim.services.submit import (  # noqa: F401
     ClaimSubmitService,
     submit_claim,
 )
-from claim.services.xml_submit import (  # noqa: F401
+from claim.serializers.xml_serializer import (  # noqa: F401
     ClaimElementSubmit,
     ClaimItemSubmit,
     ClaimServiceSubmit,
