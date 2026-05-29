@@ -91,6 +91,7 @@ class ReferralDiagnosisServiceTest(TestCase):
         claim = update_or_create_claim(
             {
                 "code": code,
+                "status": Claim.STATUS_ENTERED,
                 "insuree_id": self.insuree.id,
                 "date_from": date.today() - timedelta(days=2),
                 "date_claimed": date.today() - timedelta(days=1),
@@ -265,8 +266,8 @@ class ReferralDiagnosisGraphQLTest(openIMISGraphQLTestCase):
         self.assertResponseNoErrors(query_resp)
         data = json.loads(query_resp.content)["data"]["claim"]
         self.assertEqual(data["referralCode"], "REF-GQL")
-        self.assertEqual(data["referFrom"]["id"], str(self.refer_from.id))
-        self.assertEqual(data["referTo"]["id"], str(self.refer_to.id))
+        self.assertEqual(data["referFrom"]["code"], self.refer_from.code)
+        self.assertEqual(data["referTo"]["code"], self.refer_to.code)
         self.assertEqual(data["icd1"]["code"], self.match_icd.code)
 
     def test_claim_with_same_diagnosis_matches_additional_icd_field(self):
