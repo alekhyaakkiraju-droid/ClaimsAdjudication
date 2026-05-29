@@ -211,7 +211,7 @@ class ReferralDiagnosisGraphQLTest(openIMISGraphQLTestCase):
     def _headers(self):
         return {"HTTP_AUTHORIZATION": f"Bearer {self.token}"}
 
-    @mock.patch("claim.services.processing_claim", return_value=[])
+    @mock.patch("claim.services.submit.processing_claim", return_value=[])
     def test_graphql_create_and_query_referral_fields(self, _mock_processing):
         code = f"WO023G-{uuid4().hex[:8]}"
         mutation_id = str(uuid4())
