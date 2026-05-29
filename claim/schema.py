@@ -282,12 +282,13 @@ class Query(graphene.ObjectType):
     def resolve_claim_with_same_diagnosis(self, info, **kwargs):
         require_query_permission(info, "claim_with_same_diagnosis")
 
+        from claim.referral_diagnosis import build_same_diagnosis_filter
+
         qs = Claim.objects.filter(
-            icd__code=kwargs["icd"],
-            icd__validity_to__isnull=True,
-            insuree__chf_id=kwargs["chfid"],
-            insuree__validity_to__isnull=True,
-            validity_to__isnull=True,
+            build_same_diagnosis_filter(
+                icd_code=kwargs["icd"],
+                chf_id=kwargs["chfid"],
+            )
         ).order_by("date_claimed")
         return qs
 

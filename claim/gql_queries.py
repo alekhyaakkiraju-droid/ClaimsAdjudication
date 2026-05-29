@@ -80,7 +80,14 @@ class ClaimGQLType(DjangoObjectType):
             "visit_type": ["exact"],
             "attachments_count__value": ["exact", "lt", "lte", "gt", "gte"],
             "pre_authorization": ["exact"],
+            "referral_code": ["exact", "icontains"],
             **prefix_filterset("icd__", DiagnosisGQLType._meta.filter_fields),
+            **prefix_filterset("icd_1__", DiagnosisGQLType._meta.filter_fields),
+            **prefix_filterset("icd_2__", DiagnosisGQLType._meta.filter_fields),
+            **prefix_filterset("icd_3__", DiagnosisGQLType._meta.filter_fields),
+            **prefix_filterset("icd_4__", DiagnosisGQLType._meta.filter_fields),
+            **prefix_filterset("refer_from__", HealthFacilityGQLType._meta.filter_fields),
+            **prefix_filterset("refer_to__", HealthFacilityGQLType._meta.filter_fields),
             **prefix_filterset("admin__", ClaimAdminGQLType._meta.filter_fields),
             **prefix_filterset(
                 "health_facility__", HealthFacilityGQLType._meta.filter_fields
