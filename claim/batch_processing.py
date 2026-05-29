@@ -5,11 +5,8 @@ WO-025: Shared eager-loading and batch helpers for claim processing.
 from __future__ import annotations
 
 from typing import Iterable, List, Optional, Sequence, Tuple
-from uuid import UUID
 
-from django.db.models import Prefetch, Q
-
-from claim.models import Claim, ClaimItem, ClaimService
+from claim.models import Claim
 from claim.submission_pipeline import claim_submission_queryset
 from claim.utils import get_claim_target_date, get_valid_policies_qs
 
