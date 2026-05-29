@@ -4,7 +4,7 @@ from __future__ import annotations
 
 import xml.etree.ElementTree as ET
 from datetime import date as date_type
-from typing import Any, List, Optional, Union
+from typing import List, Optional, Union
 
 import core
 from medical.models import Item, Service

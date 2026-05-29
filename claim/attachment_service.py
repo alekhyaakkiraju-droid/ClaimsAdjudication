@@ -4,7 +4,7 @@ from __future__ import annotations
 
 import pathlib
 from datetime import datetime
-from typing import Any, Dict, List, Optional
+from typing import Any, Dict, List
 from uuid import uuid4
 
 from django.core.exceptions import ValidationError
