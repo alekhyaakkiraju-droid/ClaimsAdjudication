@@ -479,7 +479,9 @@ def claim_create(data, user, autogenerate_code=False):
     restore = data.pop("restore", None)
     autogenerate_code = data.pop("autogenerate", None)
     if restore:
-        data["restore"] = Claim.objects.filter(uuid=restore).first()
+        from claim.claim_restore import validate_restore_request
+
+        data["restore"] = validate_restore_request(restore, user)
 
     if autogenerate_code:
         data["code"] = __autogenerate_claim_code()
@@ -545,23 +547,9 @@ def validate_claim_data(data, user):
     current_code = current_claim.code if current_claim else None
 
     if restore:
-        restored_qs = Claim.objects.filter(uuid=restore)
-        restored_from_claim = restored_qs.first()
-        restored_count = Claim.objects.filter(restore=restored_from_claim).count()
-        if not restored_qs.exists():
-            raise ValidationError(_("mutation.restored_from_does_not_exist"))
-        if not restored_from_claim.status == Claim.STATUS_REJECTED:
-            raise ValidationError(_("mutation.cannot_restore_not_rejected_claim"))
-        if not user.has_perms(ClaimConfig.gql_mutation_restore_claims_perms):
-            raise ValidationError(_("mutation.no_restore_rights"))
-        if (
-            ClaimConfig.claim_max_restore
-            and restored_count >= ClaimConfig.claim_max_restore
-        ):
-            raise ValidationError(
-                _("mutation.max_restored_claim")
-                % {"max_restore": ClaimConfig.claim_max_restore}
-            )
+        from claim.claim_restore import validate_restore_request
+
+        validate_restore_request(restore, user)
 
     elif current_claim is not None and current_claim.status not in (
         Claim.STATUS_CHECKED,

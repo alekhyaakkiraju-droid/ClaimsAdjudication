@@ -95,6 +95,13 @@ GQL_QUERY_PERMISSION_MAP = {
     "claim_gql_type": "gql_query_claims_perms",
 }
 
+
+def require_restore_permission(user) -> None:
+    """Enforce restore-specific mutation permissions."""
+    if not _user_has_perm_spec(user, _perms_from_config("gql_mutation_restore_claims_perms")):
+        raise ValidationError(_("mutation.no_restore_rights"))
+
+
 GQL_MUTATION_PERMISSION_MAP = {
     "CreateClaimMutation": "gql_mutation_create_claims_perms",
     "UpdateClaimMutation": "gql_mutation_update_claims_perms",
