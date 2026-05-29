@@ -100,27 +100,31 @@ class ReferenceDataCacheResolverTest(SimpleTestCase):
         self.info = mock.Mock()
         self.info.context.user = mock.Mock(id=1)
 
-    @mock.patch("claim.schema.require_query_permission")
-    @mock.patch("claim.schema.ClaimAttachmentType")
+    @mock.patch("claim.schema_resolvers.require_query_permission")
+    @mock.patch("claim.schema_resolvers.ClaimAttachmentType")
     def test_resolve_claim_attachment_type_uses_cached_pks(
         self, attachment_type_model, _permission
     ):
+        from claim.schema_resolvers import resolve_claim_attachment_type
+
         pks = [101, 102]
         safe_cache_set(attachment_types_cache_key(), pks, 300)
         mock_qs = mock.Mock()
         attachment_type_model.objects.filter.return_value = mock_qs
-        result = Query().resolve_claim_attachment_type(self.info)
+        result = resolve_claim_attachment_type(self.info)
         attachment_type_model.objects.filter.assert_called_once_with(pk__in=pks)
         self.assertIs(result, mock_qs)
 
-    @mock.patch("claim.schema.require_query_permission")
-    @mock.patch("claim.schema.Officer")
+    @mock.patch("claim.schema_resolvers.require_query_permission")
+    @mock.patch("claim.schema_resolvers.Officer")
     def test_resolve_claim_officers_uses_cached_pks(self, officer_model, _permission):
+        from claim.schema_resolvers import resolve_claim_officers
+
         pks = [201, 202]
         safe_cache_set(officers_cache_key("smith"), pks, 300)
         mock_qs = mock.Mock()
         officer_model.objects.filter.return_value = mock_qs
-        result = Query().resolve_claim_officers(self.info, search="smith")
+        result = resolve_claim_officers(self.info, search="smith")
         officer_model.objects.filter.assert_called_once_with(pk__in=pks)
         self.assertIs(result, mock_qs)
 
