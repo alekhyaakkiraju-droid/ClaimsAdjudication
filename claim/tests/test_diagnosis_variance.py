@@ -27,6 +27,15 @@ from graphql_jwt.shortcuts import get_token
 from medical.test_helpers import create_test_diagnosis
 
 
+def _claim_with_amounts(*, icd, claimed, approved, date_claimed):
+    claim = create_test_claim(custom_props={"icd": icd, "date_claimed": date_claimed})
+    claim.claimed = claimed
+    claim.approved = approved
+    claim.date_claimed = date_claimed
+    claim.save()
+    return claim
+
+
 class DiagnosisVarianceFilterTest(TestCase):
     @classmethod
     def setUpClass(cls):
@@ -35,33 +44,27 @@ class DiagnosisVarianceFilterTest(TestCase):
         cls.lookback = timezone.now().date() - timedelta(days=30)
         cls.claims = []
 
-        baseline = create_test_claim(
-            custom_props={
-                "icd": cls.shared_icd,
-                "claimed": 100,
-                "approved": 100,
-                "date_claimed": cls.lookback + timedelta(days=1),
-            }
+        baseline = _claim_with_amounts(
+            icd=cls.shared_icd,
+            claimed=100,
+            approved=100,
+            date_claimed=cls.lookback + timedelta(days=1),
         )
         cls.claims.append(baseline)
 
-        high_claim = create_test_claim(
-            custom_props={
-                "icd": cls.shared_icd,
-                "claimed": 200,
-                "approved": 50,
-                "date_claimed": cls.lookback + timedelta(days=2),
-            }
+        high_claim = _claim_with_amounts(
+            icd=cls.shared_icd,
+            claimed=200,
+            approved=50,
+            date_claimed=cls.lookback + timedelta(days=2),
         )
         cls.claims.append(high_claim)
 
-        low_claim = create_test_claim(
-            custom_props={
-                "icd": cls.shared_icd,
-                "claimed": 110,
-                "approved": 100,
-                "date_claimed": cls.lookback + timedelta(days=3),
-            }
+        low_claim = _claim_with_amounts(
+            icd=cls.shared_icd,
+            claimed=110,
+            approved=100,
+            date_claimed=cls.lookback + timedelta(days=3),
         )
         cls.claims.append(low_claim)
 
@@ -128,33 +131,27 @@ class DiagnosisVarianceGraphQLTest(openIMISGraphQLTestCase):
         cls.lookback = timezone.now().date() - timedelta(days=30)
         cls.claims = []
 
-        baseline = create_test_claim(
-            custom_props={
-                "icd": cls.shared_icd,
-                "claimed": 100,
-                "approved": 100,
-                "date_claimed": cls.lookback + timedelta(days=1),
-            }
+        baseline = _claim_with_amounts(
+            icd=cls.shared_icd,
+            claimed=100,
+            approved=100,
+            date_claimed=cls.lookback + timedelta(days=1),
         )
         cls.claims.append(baseline)
 
-        cls.high_claim = create_test_claim(
-            custom_props={
-                "icd": cls.shared_icd,
-                "claimed": 250,
-                "approved": 50,
-                "date_claimed": cls.lookback + timedelta(days=2),
-            }
+        cls.high_claim = _claim_with_amounts(
+            icd=cls.shared_icd,
+            claimed=250,
+            approved=50,
+            date_claimed=cls.lookback + timedelta(days=2),
         )
         cls.claims.append(cls.high_claim)
 
-        cls.low_claim = create_test_claim(
-            custom_props={
-                "icd": cls.shared_icd,
-                "claimed": 110,
-                "approved": 100,
-                "date_claimed": cls.lookback + timedelta(days=3),
-            }
+        cls.low_claim = _claim_with_amounts(
+            icd=cls.shared_icd,
+            claimed=110,
+            approved=100,
+            date_claimed=cls.lookback + timedelta(days=3),
         )
         cls.claims.append(cls.low_claim)
 
