@@ -69,7 +69,7 @@ class ClaimSubmissionQueryIntegrationTest(openIMISGraphQLTestCase):
     def _headers(self):
         return {"HTTP_AUTHORIZATION": f"Bearer {self.token}"}
 
-    @mock.patch("claim.services.processing_claim", return_value=[])
+    @mock.patch("claim.services.submit.processing_claim", return_value=[])
     def test_create_query_and_submit_claim(self, _mock_processing):
         mutation_id = str(uuid4())
 
