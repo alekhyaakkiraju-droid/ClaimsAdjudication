@@ -12,6 +12,7 @@ from django.core.exceptions import PermissionDenied, ValidationError
 from django.utils.translation import gettext as _
 
 from claim.models import Claim
+from claim.query_cache import NOT_FOUND, get_cached_claim_pk, set_cached_claim_pk
 from claim.read_queryset import claim_read_queryset
 from insuree.models import Insuree
 
@@ -20,11 +21,21 @@ logger = logging.getLogger(__name__)
 
 def get_valid_claim(*, claim_id: Optional[int] = None, claim_uuid: Optional[Union[str, UUID]] = None):
     """Return a valid claim or None without raising DoesNotExist."""
+    cached_pk = get_cached_claim_pk(claim_id=claim_id, claim_uuid=claim_uuid)
     qs = claim_read_queryset(Claim.objects.filter(*Claim.filter_validity()))
+    if cached_pk is not None:
+        if cached_pk == NOT_FOUND:
+            return None
+        return qs.filter(pk=cached_pk).first()
+
     if claim_id is not None:
-        return qs.filter(id=claim_id).first()
+        claim = qs.filter(id=claim_id).first()
+        set_cached_claim_pk(claim_id=claim_id, pk=claim.pk if claim else None)
+        return claim
     if claim_uuid is not None:
-        return qs.filter(uuid=claim_uuid).first()
+        claim = qs.filter(uuid=claim_uuid).first()
+        set_cached_claim_pk(claim_uuid=claim_uuid, pk=claim.pk if claim else None)
+        return claim
     return None
 
 

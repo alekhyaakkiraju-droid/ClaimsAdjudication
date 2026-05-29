@@ -11,7 +11,7 @@ import hashlib
 import json
 from decimal import Decimal
 
-from django.core.cache import cache
+from claim.query_cache import safe_cache_get, safe_cache_set
 from django.db.models import Avg, Q
 
 from claim.apps import ClaimConfig
@@ -30,7 +30,7 @@ def _variance_cache_key(last_year_date) -> str:
 def fetch_diagnosis_avg_approved(*, validity_filters, last_year_date) -> dict[str, float]:
     """Return icd code -> average approved amount for claims in the lookback window."""
     cache_key = _variance_cache_key(last_year_date)
-    cached = cache.get(cache_key)
+    cached = safe_cache_get(cache_key)
     if cached is not None:
         return cached
 
@@ -45,7 +45,7 @@ def fetch_diagnosis_avg_approved(*, validity_filters, last_year_date) -> dict[st
         for row in rows
         if row["icd__code"] is not None
     }
-    cache.set(cache_key, result, DIAGNOSIS_VARIANCE_CACHE_TTL)
+    safe_cache_set(cache_key, result, DIAGNOSIS_VARIANCE_CACHE_TTL)
     return result
 
 

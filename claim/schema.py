@@ -17,7 +17,16 @@ from graphene_django.filter import DjangoFilterConnectionField
 from claim.api_errors import get_insuree_health_facility_for_fsp, get_valid_claim
 from claim.read_queryset import apply_claim_read_prefetches
 from claim.gql_authorization import require_query_permission
-from claim.models import ClaimAttachment
+from claim.models import ClaimAttachment, ClaimAttachmentType
+from claim.query_cache import (
+    attachment_types_cache_key,
+    bump_list_cache_version,
+    cached_or_load,
+    cached_queryset_pks,
+    claim_list_cache_key,
+    invalidate_claim_cache,
+    officers_cache_key,
+)
 # We do need all queries and mutations in the namespace here.
 
 from location.schema import HealthFacilityGQLType
@@ -197,6 +206,22 @@ class Query(graphene.ObjectType):
 
         if len(filters) == 0 and not code_is_not:
             query = query.all()
+
+        from claim.apps import ClaimConfig
+
+        list_key = claim_list_cache_key(
+            {
+                "filters": [str(f) for f in filters],
+                "code_is_not": code_is_not,
+                "variance": variance,
+                "user_id": getattr(info.context.user, "id", None),
+            }
+        )
+        query = cached_queryset_pks(
+            list_key,
+            query,
+            timeout=ClaimConfig.query_cache_list_ttl,
+        )
         return gql_optimizer.query(apply_claim_read_prefetches(query), info)
 
     def resolve_claim_attachments(self, info, **kwargs):
@@ -206,15 +231,47 @@ class Query(graphene.ObjectType):
     def resolve_claim_officers(self, info, search=None, **kwargs):
         require_query_permission(info, "claim_officers")
 
-        qs = Officer.objects
+        from claim.apps import ClaimConfig
 
-        if search is not None:
-            qs = qs.filter(
-                Q(code__icontains=search)
-                | Q(last_name__icontains=search)
-                | Q(other_names__icontains=search)
+        def _load_officer_pks():
+            qs = Officer.objects
+            if search is not None:
+                qs = qs.filter(
+                    Q(code__icontains=search)
+                    | Q(last_name__icontains=search)
+                    | Q(other_names__icontains=search)
+                )
+            return list(qs.values_list("pk", flat=True))
+
+        pks = cached_or_load(
+            officers_cache_key(search),
+            _load_officer_pks,
+            timeout=ClaimConfig.query_cache_reference_ttl,
+        )
+        if not pks:
+            return Officer.objects.none()
+        return Officer.objects.filter(pk__in=pks)
+
+    def resolve_claim_attachment_type(self, info, **kwargs):
+        require_query_permission(info, "claim_attachment_type")
+
+        from claim.apps import ClaimConfig
+
+        def _load_attachment_type_pks():
+            return list(
+                ClaimAttachmentType.objects.filter(
+                    *ClaimAttachmentType.filter_validity()
+                ).values_list("pk", flat=True)
             )
-        return qs
+
+        pks = cached_or_load(
+            attachment_types_cache_key(),
+            _load_attachment_type_pks,
+            timeout=ClaimConfig.query_cache_reference_ttl,
+        )
+        if not pks:
+            return ClaimAttachmentType.objects.none()
+        return ClaimAttachmentType.objects.filter(pk__in=pks)
 
     def resolve_fsp_from_claim(self, info, **kwargs):
         require_query_permission(info, "fsp_from_claim")
@@ -291,8 +348,13 @@ def on_claim_mutation(sender, **kwargs):
         uuid = kwargs["data"].get("claim_uuid", None)
         uuids = [uuid] if uuid else []
     if not uuids:
+        bump_list_cache_version()
         return []
     impacted_claims = Claim.objects.filter(uuid__in=uuids).all()
+    invalidate_claim_cache(
+        claim_ids=[claim.id for claim in impacted_claims],
+        claim_uuids=uuids,
+    )
     for claim in impacted_claims:
         ClaimMutation.objects.create(claim=claim, mutation_id=kwargs["mutation_log_id"])
     return []

@@ -42,6 +42,10 @@ DEFAULT_CFG = {
         "text/plain",
     ],
     "verify_quantities": False,
+    "query_cache_enabled": True,
+    "query_cache_reference_ttl": 300,
+    "query_cache_detail_ttl": 120,
+    "query_cache_list_ttl": 60,
 }
 
 
@@ -86,6 +90,10 @@ class ClaimConfig(AppConfig):
     attachment_validation_enabled = True
     attachment_max_size_bytes = None
     attachment_allowed_mime_types = None
+    query_cache_enabled = True
+    query_cache_reference_ttl = 300
+    query_cache_detail_ttl = 120
+    query_cache_list_ttl = 60
 
     def __load_config(self, cfg):
         for field in cfg:
