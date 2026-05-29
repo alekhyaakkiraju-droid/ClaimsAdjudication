@@ -21,8 +21,14 @@ class TypeAnnotationCoverageTest(SimpleTestCase):
         config = Path(__file__).resolve().parents[2] / "pyproject.toml"
         text = config.read_text(encoding="utf-8")
         for module in TYPED_MODULES:
-            prefix = module.replace(".", ".")  # full dotted name
-            self.assertIn(prefix, text, msg=f"missing mypy override for {module}")
+            if module.startswith("claim.serializers."):
+                self.assertIn(
+                    "claim.serializers.*",
+                    text,
+                    msg=f"missing mypy override for {module}",
+                )
+            else:
+                self.assertIn(module, text, msg=f"missing mypy override for {module}")
 
     def test_key_service_callables_have_annotations(self):
         from claim.services.submit import ClaimSubmitService, submit_claim
@@ -37,4 +43,4 @@ class TypeAnnotationCoverageTest(SimpleTestCase):
         from claim.serializers.xml_serializer import ClaimSubmit
 
         sig = inspect.signature(ClaimSubmit.to_xml)
-        self.assertEqual(sig.return_annotation, str)
+        self.assertIn(sig.return_annotation, (str, "str"))
