@@ -331,6 +331,9 @@ class ClaimReportService(object):
             "icd2": str(claim.icd_2) if claim.icd_2 else None,
             "icd3": str(claim.icd_3) if claim.icd_3 else None,
             "icd4": str(claim.icd_4) if claim.icd_4 else None,
+            "referFrom": str(claim.refer_from) if claim.refer_from else None,
+            "referTo": str(claim.refer_to) if claim.refer_to else None,
+            "referralCode": claim.referral_code,
             "guarantee": claim.guarantee_id,
             "visitType": claim.visit_type,
             "claimed": claim.claimed,
@@ -440,6 +443,9 @@ def reset_claim_before_update(claim):
     claim.icd_2 = None
     claim.icd_3 = None
     claim.icd_4 = None
+    claim.refer_from = None
+    claim.refer_to = None
+    claim.referral_code = None
     claim.guarantee_id = None
     claim.explanation = None
     claim.adjustment = None
@@ -583,12 +589,12 @@ def validate_claim_data(data, user):
 
 
 def validate_number_of_additional_diagnoses(incoming_data):
-    additional_diagnoses_count = 0
-    for key in incoming_data.keys():
-        if key.startswith("icd_") and key.endswith("_id") and key != "icd_id":
-            additional_diagnoses_count += 1
+    from claim.referral_diagnosis import count_additional_diagnoses_in_data
 
-    return additional_diagnoses_count <= ClaimConfig.additional_diagnosis_number_allowed
+    return (
+        count_additional_diagnoses_in_data(incoming_data)
+        <= ClaimConfig.additional_diagnosis_number_allowed
+    )
 
 
 def set_claim_submitted(claim, errors, user):
