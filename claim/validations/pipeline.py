@@ -169,10 +169,30 @@ def validate_assign_prod_elt(claim, elt, elt_ref, elt_qs, target_date, policies=
     )
     if product_elt is None:
         logger.warning(f"Could not find a suitable product from {type(elt)} {elt.id}")
+        elt.rejection_reason = REJECTION_REASON_NO_PRODUCT_FOUND
+        elt.save()
+        return [
+            {
+                "code": REJECTION_REASON_NO_PRODUCT_FOUND,
+                "message": _("claim.validation.assign_prod.elt.no_product_code")
+                % {"code": claim.code, "elt": str(elt_ref)},
+                "detail": claim.uuid,
+            }
+        ]
     if product_elt.product is None:
         logger.warning(
             f"Found a productItem/Service for {type(elt)} {elt.id} but it does not have a product"
         )
+        elt.rejection_reason = REJECTION_REASON_NO_PRODUCT_FOUND
+        elt.save()
+        return [
+            {
+                "code": REJECTION_REASON_NO_PRODUCT_FOUND,
+                "message": _("claim.validation.assign_prod.elt.no_product_code")
+                % {"code": claim.code, "elt": str(elt_ref)},
+                "detail": claim.uuid,
+            }
+        ]
     logger.debug("[claim: %s] product_id found: %s", claim.uuid, product_elt.product.id)
     elt.product = product_elt.product
     logger.debug(

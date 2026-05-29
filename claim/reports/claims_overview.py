@@ -7,7 +7,7 @@ from django.db.models import Q
 
 from location.models import Location, HealthFacility
 from product.models import Product
-from claim.models import Claim
+from claim.models import Claim, ClaimItem, ClaimService
 
 import logging
 

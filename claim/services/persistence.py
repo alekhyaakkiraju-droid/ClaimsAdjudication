@@ -102,13 +102,15 @@ def claim_create_items_and_services(claim, data, user):
 
 def claim_create(data, user, autogenerate_code=False):
     restore = data.pop("restore", None)
-    autogenerate_code = data.pop("autogenerate", None)
+    autogenerate = data.pop("autogenerate", None)
+    if autogenerate is None:
+        autogenerate = autogenerate_code
     if restore:
         from claim.claim_restore import validate_restore_request
 
         data["restore"] = validate_restore_request(restore, user)
 
-    if autogenerate_code:
+    if autogenerate:
         data["code"] = _autogenerate_claim_code()
     data["audit_user_id"] = user.id_for_audit
     claim = Claim()
