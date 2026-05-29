@@ -9,6 +9,7 @@ from __future__ import annotations
 
 import hashlib
 import json
+from decimal import Decimal
 
 from django.core.cache import cache
 from django.db.models import Avg, Q
@@ -59,7 +60,7 @@ def build_diagnosis_variance_filter(
     if only_on_existing is None:
         only_on_existing = ClaimConfig.gql_query_claim_diagnosis_variance_only_on_existing
 
-    threshold_factor = 1 + variance / 100
+    threshold_factor = Decimal(1) + Decimal(variance) / Decimal(100)
     avg_by_code = fetch_diagnosis_avg_approved(
         validity_filters=validity_filters,
         last_year_date=last_year_date,
@@ -69,7 +70,8 @@ def build_diagnosis_variance_filter(
     for code, diag_avg in avg_by_code.items():
         if diag_avg is None:
             continue
-        high_variance_q |= Q(icd__code=code, claimed__gt=threshold_factor * diag_avg)
+        threshold = threshold_factor * Decimal(str(diag_avg))
+        high_variance_q |= Q(icd__code=code, claimed__gt=threshold)
 
     if only_on_existing:
         return high_variance_q if high_variance_q else Q(pk__in=[])
