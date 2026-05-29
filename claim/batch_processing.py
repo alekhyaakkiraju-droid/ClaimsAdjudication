@@ -11,6 +11,11 @@ from claim.submission_pipeline import claim_submission_queryset
 from claim.utils import get_claim_target_date, get_valid_policies_qs
 
 
+def _policy_cache_key(claim: Claim) -> Tuple[int, str]:
+    """Hashable cache key for insuree policies (AdDate is not hashable)."""
+    return (claim.insuree_id, str(get_claim_target_date(claim)))
+
+
 def claim_process_queryset(queryset=None):
     """Eager-load relations used by process_claims / processing_claim."""
     base = claim_submission_queryset(queryset)
@@ -21,21 +26,23 @@ class BatchPolicyCache:
     """Preload policies for a batch of claims keyed by (insuree_id, target_date)."""
 
     def __init__(self, claims: Iterable[Claim]):
-        self._cache: dict[Tuple[int, object], list] = {}
-        keys: set[Tuple[int, object]] = set()
+        self._cache: dict[Tuple[int, str], list] = {}
+        keys: set[Tuple[int, str]] = set()
         for claim in claims:
             if claim.insuree_id:
-                keys.add((claim.insuree_id, get_claim_target_date(claim)))
-        for insuree_id, target_date in keys:
-            self._cache[(insuree_id, target_date)] = list(
+                keys.add(_policy_cache_key(claim))
+        for insuree_id, target_date_str in keys:
+            target_date = get_claim_target_date(
+                next(c for c in claims if c.insuree_id == insuree_id)
+            )
+            self._cache[(insuree_id, target_date_str)] = list(
                 get_valid_policies_qs(insuree_id, target_date)
             )
 
     def policies_for(self, claim: Claim) -> Optional[list]:
         if not claim.insuree_id:
             return None
-        key = (claim.insuree_id, get_claim_target_date(claim))
-        return list(self._cache.get(key, []))
+        return list(self._cache.get(_policy_cache_key(claim), []))
 
 
 def load_claims_for_processing(uuids: Sequence[str]) -> List[Claim]:
