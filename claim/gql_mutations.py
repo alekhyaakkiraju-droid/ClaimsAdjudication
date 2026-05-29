@@ -824,7 +824,9 @@ class DeliverClaimFeedbackMutation(OpenIMISMutation):
                 claim=claim, defaults=feedback
             )
             claim.feedback = f
-            claim.feedback_status = Claim.FEEDBACK_DELIVERED
+            from claim.feedback_review_state_machine import apply_feedback_status
+
+            apply_feedback_status(claim, Claim.FEEDBACK_DELIVERED)
             claim.feedback_available = True
             claim.save()
             set_feedback_prompt_validity_to_to_current_date(claim.uuid)
@@ -1036,7 +1038,9 @@ class SaveClaimReviewMutation(OpenIMISMutation):
                 apply_claim_status(claim, Claim.STATUS_REJECTED)
             submit_review = data.get("submit_review", False)
             if submit_review:
-                claim.review_status = Claim.REVIEW_DELIVERED
+                from claim.feedback_review_state_machine import apply_review_status
+
+                apply_review_status(claim, Claim.REVIEW_DELIVERED)
             claim.save()
             if submit_review:
                 errors = update_claims_dedrems(None, user, [claim])
