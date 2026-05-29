@@ -2,6 +2,7 @@
 import logging
 from collections import namedtuple, defaultdict
 from decimal import Decimal
+from claim.state_machine import apply_claim_status
 from claim.models import (
     ClaimItem,
     Claim,
@@ -82,7 +83,7 @@ def fetch_policies(claim, target_date, policies=None):
         )
     if not policies:
         logger.warning(f"No valid policies found for claim {claim.uuid}")
-        claim.status = Claim.STATUS_REJECTED
+        apply_claim_status(claim, Claim.STATUS_REJECTED)
         claim.rejection_reason = REJECTION_REASON_NO_COVERAGE
         claim.save()
         return None
@@ -660,7 +661,7 @@ def update_claim_status(claim, is_process, deductibles, user, products_id):
         logger.warning(
             f"claim {claim.uuid} did not have any item or service to valuate."
         )
-        claim.status = Claim.STATUS_REJECTED
+        apply_claim_status(claim, Claim.STATUS_REJECTED)
         return [
             {
                 "code": REJECTION_REASON_NO_PRODUCT_FOUND,
@@ -672,10 +673,10 @@ def update_claim_status(claim, is_process, deductibles, user, products_id):
     elif is_process:
         claim.approved = deductibles["remunerated"]
         if deductibles["relative_prices"]:
-            claim.status = Claim.STATUS_PROCESSED
+            apply_claim_status(claim, Claim.STATUS_PROCESSED)
             claim.remunerated = None
         else:
-            claim.status = Claim.STATUS_VALUATED
+            apply_claim_status(claim, Claim.STATUS_VALUATED)
             claim.remunerated = deductibles["remunerated"]
         claim.audit_user_id_process = getattr(user, "id_for_audit", -1)
         claim.process_stamp = now
@@ -686,7 +687,7 @@ def update_claim_status(claim, is_process, deductibles, user, products_id):
             claim.review_status = Claim.REVIEW_BYPASSED
     if not products_id:
         logger.warning(f"claim {claim.uuid} is not covered by any product.")
-        claim.status = Claim.STATUS_REJECTED
+        apply_claim_status(claim, Claim.STATUS_REJECTED)
         return [
             {
                 "code": REJECTION_REASON_NO_PRODUCT_FOUND,
@@ -1147,7 +1148,7 @@ def validate_claim(claim, check_max, process_dedrem_opt=True, policies=None, is_
                     errors += policy_errors
                 policies.remove(plc)
     else:
-        claim.status = Claim.STATUS_REJECTED
+        apply_claim_status(claim, Claim.STATUS_REJECTED)
         claim.rejection_reason = REJECTION_REASON_NO_COVERAGE
         claim.save()
         return errors
@@ -1385,7 +1386,7 @@ def validate_claim(claim, check_max, process_dedrem_opt=True, policies=None, is_
             ]
             if len(detail_errors) > 0:
                 errors += detail_errors
-            claim.status = Claim.STATUS_REJECTED
+            apply_claim_status(claim, Claim.STATUS_REJECTED)
             claim.rejection_reason = REJECTION_REASON_INVALID_ITEM_OR_SERVICE
             claim.save()
         if process_dedrem_opt and len(errors) == 0:
