@@ -32,6 +32,8 @@ Service boundaries (WO-029): **[docs/SERVICE_BOUNDARIES.md](docs/SERVICE_BOUNDAR
 
 XML serializer (WO-030): **[docs/XML_SERIALIZER.md](docs/XML_SERIALIZER.md)** — `claim/serializers/xml_serializer.py`.
 
+Type annotations (WO-031): **[docs/TYPE_ANNOTATIONS.md](docs/TYPE_ANNOTATIONS.md)** — strict mypy on public API modules.
+
 [![License: AGPL v3](https://img.shields.io/badge/License-AGPL%20v3-blue.svg)](https://www.gnu.org/licenses/agpl-3.0)
 
 ## Code climate (develop branch)
