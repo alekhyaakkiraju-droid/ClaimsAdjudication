@@ -2,6 +2,8 @@
 
 Publishing uses [`.github/workflows/python-publish.yml`](../.github/workflows/python-publish.yml) and PEP 621 packaging in `pyproject.toml`.
 
+Staged rollout gates: **[STAGED_ROLLOUT.md](STAGED_ROLLOUT.md)** (WO-038) — `./scripts/staged-rollout-smoke.sh`.
+
 ## Version from Git tag
 
 On release, the workflow writes the tag (without a leading `v`) into `VERSION`. `pyproject.toml` reads that file via `[tool.setuptools.dynamic] version = { file = "VERSION" }`.
