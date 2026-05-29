@@ -22,7 +22,7 @@ DIAGNOSIS_VARIANCE_CACHE_PREFIX = "claim:diag_variance_avgs:"
 
 def _variance_cache_key(last_year_date) -> str:
     payload = json.dumps({"last_year": str(last_year_date)}, sort_keys=True)
-    digest = hashlib.md5(payload.encode()).hexdigest()
+    digest = hashlib.sha256(payload.encode()).hexdigest()
     return f"{DIAGNOSIS_VARIANCE_CACHE_PREFIX}{digest}"
 
 
