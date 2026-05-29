@@ -2,3 +2,4 @@ include LICENSE.md
 include README.md
 include VERSION
 recursive-include locale *.po
+recursive-include claim/reports/templates *.json

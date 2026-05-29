@@ -49,6 +49,9 @@ version = { file = "VERSION" }
 where = ["."]
 include = ["claim*"]
 
+[tool.setuptools.package-data]
+"claim.reports.templates" = ["*.json"]
+
 [tool.setuptools.data-files]
 "locale/en/LC_MESSAGES" = ["locale/en/LC_MESSAGES/django.po"]
 
