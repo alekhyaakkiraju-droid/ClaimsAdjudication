@@ -48,7 +48,7 @@ from claim.services import (
     update_or_create_claim as service_update_or_create_claim,
     ClaimSubmitService,
     processing_claim as service_processing_claim,
-    process_claims_batch,
+    process_claims_batch_or_enqueue,
     create_feedback_prompt as service_create_feedback_prompt,
     update_claims_dedrems,
     set_feedback_prompt_validity_to_to_current_date,
@@ -1091,8 +1091,23 @@ class ProcessClaimsMutation(OpenIMISMutation, ClaimSubmissionStatsMixin):
         require_mutation_permission(user, cls._mutation_class)
         uuids = data.get("uuids", None)
         client_mutation_id = data.get("client_mutation_id", None)
-        errors = process_claims_batch(uuids, user)
+        errors, queued_job = process_claims_batch_or_enqueue(
+            uuids,
+            user,
+            client_mutation_id=client_mutation_id,
+        )
         cls.add_submission_stats_to_mutation_log(client_mutation_id, uuids)
+        if queued_job is not None:
+            from claim.audit_governance import record_claim_audit_event
+
+            record_claim_audit_event(
+                "claim.process.queued",
+                user,
+                context={
+                    "job_uuid": str(queued_job.uuid),
+                    "claim_count": len(uuids or []),
+                },
+            )
         return errors
 
 

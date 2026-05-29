@@ -15,6 +15,7 @@ from claim.models import (
     ClaimAttachmentType,
     ClaimServiceService,
     ClaimServiceItem,
+    ClaimJob,
 )
 from claim.gql_authorization import require_query_permission
 from core.schema import ClaimAdminGQLType
@@ -218,3 +219,20 @@ class ClaimServiceItemGQLType(DjangoObjectType):
 
     class Meta:
         model = ClaimServiceItem
+
+
+class ClaimJobGQLType(DjangoObjectType):
+    """
+    WO-026: Status of a database-backed claim background job.
+    """
+
+    class Meta:
+        model = ClaimJob
+        interfaces = (graphene.relay.Node,)
+        filter_fields = {
+            "uuid": ["exact"],
+            "job_type": ["exact"],
+            "status": ["exact"],
+            "client_mutation_id": ["exact"],
+        }
+        connection_class = ExtendedConnection
