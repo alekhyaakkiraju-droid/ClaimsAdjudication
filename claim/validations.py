@@ -681,10 +681,15 @@ def update_claim_status(claim, is_process, deductibles, user, products_id):
         claim.audit_user_id_process = getattr(user, "id_for_audit", -1)
         claim.process_stamp = now
         claim.date_processed = now
+        from claim.feedback_review_state_machine import (
+            apply_feedback_status,
+            apply_review_status,
+        )
+
         if claim.feedback_status == Claim.FEEDBACK_SELECTED:
-            claim.feedback_status = Claim.FEEDBACK_BYPASSED
+            apply_feedback_status(claim, Claim.FEEDBACK_BYPASSED)
         if claim.review_status == Claim.REVIEW_SELECTED:
-            claim.review_status = Claim.REVIEW_BYPASSED
+            apply_review_status(claim, Claim.REVIEW_BYPASSED)
     if not products_id:
         logger.warning(f"claim {claim.uuid} is not covered by any product.")
         apply_claim_status(claim, Claim.STATUS_REJECTED)

@@ -761,7 +761,16 @@ def set_claims_status(uuids, field, status, audit_data=None, user=None):
         remaining_uuid.remove(claim.uuid.upper())
         try:
             claim.save_history()
-            setattr(claim, field, status)
+            if field == "feedback_status":
+                from claim.feedback_review_state_machine import apply_feedback_status
+
+                apply_feedback_status(claim, status)
+            elif field == "review_status":
+                from claim.feedback_review_state_machine import apply_review_status
+
+                apply_review_status(claim, status)
+            else:
+                setattr(claim, field, status)
             # creating/cancelling feedback prompts
             if field == "feedback_status":
                 if status == Claim.FEEDBACK_SELECTED:
