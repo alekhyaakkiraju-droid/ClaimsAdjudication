@@ -10,6 +10,7 @@ from core.datetimes.ad_datetime import date
 from location.models import Location, HealthFacility
 from product.models import Product
 
+from claim.reports.queryset import claim_operational_indicators_queryset
 from claim.reports.template_loader import load_report_template
 
 template = load_report_template("claims_primary_operational_indicators")
@@ -381,7 +382,9 @@ def claims_primary_operational_indicators_query(
             date_from__range=[start_date, end_date]
         )
 
-        claims = Claim.objects.filter(search_filters).distinct("id")
+        claims = claim_operational_indicators_queryset(
+            Claim.objects.filter(search_filters)
+        ).distinct("id")
         for claim in claims:
             dispatch_subtotals(subtotals, claim, current_month)
 

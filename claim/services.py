@@ -22,6 +22,7 @@ from claim.models import (
     ClaimDedRem,
     FeedbackPrompt,
 )
+from claim.reports.queryset import claim_print_report_queryset
 from product.models import ProductItemOrService
 from claim.utils import (
     process_items_relations,
@@ -310,12 +311,7 @@ class ClaimReportService(object):
                 queryset=queryset,
                 loc_types=["D"],
             )
-        claim = (
-            queryset.select_related("health_facility")
-            .select_related("insuree")
-            .filter(uuid=uuid)
-            .first()
-        )
+        claim = claim_print_report_queryset(queryset).filter(uuid=uuid).first()
         if not claim:
             raise PermissionDenied(_("unauthorized"))
         return {

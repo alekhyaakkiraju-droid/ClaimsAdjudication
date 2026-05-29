@@ -8,10 +8,11 @@ from django.db.models import Q
 from insuree.models import Insuree
 from location.models import Location, HealthFacility
 from product.models import Product
-from claim.models import Claim, ClaimItem, ClaimService
+from claim.models import Claim
 
 import logging
 
+from claim.reports.queryset import claim_detail_report_queryset
 from claim.reports.template_loader import load_report_template
 
 logger = logging.getLogger(__name__)
@@ -223,16 +224,10 @@ def claim_history_query(
     # An easy way would be to make a set of claim codes - during the for loop, check if the code is in the set:
     # if it's not in the set -> process the claim and add its code to the set
     # if it's already in the set -> continue
-    claim_queryset = (
+    claim_queryset = claim_detail_report_queryset(
         Claim.objects.filter(claim_filters)
         .distinct("date_claimed", "insuree__chf_id", "code")
         .order_by("date_claimed", "insuree__chf_id", "code")
-        .prefetch_related("items")
-        .prefetch_related("items__item")
-        .prefetch_related("insuree")
-        .prefetch_related("services")
-        .prefetch_related("services__service")
-        .prefetch_related("admin")
     )
 
     total_claimed = Decimal(0.0)
@@ -268,7 +263,7 @@ def claim_history_query(
         if claim.valuated:
             total_adjusted += claim.valuated
 
-        for item in claim.items.order_by("item__code"):
+        for item in claim.items.all():
 
             price_approved = coalesce_amounts(
                 item.price_approved, item.price_asked
@@ -282,7 +277,7 @@ def claim_history_query(
             if item.remunerated_amount:
                 total_paid += item.remunerated_amount
 
-        for service in claim.services.order_by("service__code"):
+        for service in claim.services.all():
 
             price_approved = coalesce_amounts(
                 service.price_approved, service.price_asked

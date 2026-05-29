@@ -134,6 +134,19 @@ query Claim($uuid: String!) {
 2. Trigger report generation via the report module API or REST print endpoint (`claim/urls.py`, README `claim_print_perms`).
 3. Record wall-clock runtime until PDF/output is available.
 
+**WO-028 optimizations (query paths):**
+
+| Report | Module | Optimization |
+|--------|--------|--------------|
+| `claim_claim` (print) | `ClaimReportService.fetch` | `claim_print_report_queryset` — select_related for HF/insuree/admin/ICD/referrals; prefetched ordered items/services |
+| `claims_overview` | `claims_overview_query` | Shared `claim_detail_report_queryset`; ordered prefetch avoids per-claim `.order_by()` queries |
+| `claim_history` | `claim_history_query` | Same as overview |
+| `claims_primary_operational_indicators` | `claims_primary_operational_indicators_query` | `claim_operational_indicators_queryset` on monthly claim passes |
+
+Shared helpers: `claim/reports/queryset.py`. Unit tests: `claim/tests/test_report_queryset.py` (`assertNumQueries` / sublinear query growth).
+
+**PRD target:** representative report generation ≤ **5 s** (see WO-028). Validate in non-prod with seeded volume (`generateclaims`); CI tests assert bounded SQL, not wall-clock SLA.
+
 ### S5 — `process_claims` execution (batch throughput)
 
 **Procedure:**
