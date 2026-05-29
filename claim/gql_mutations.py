@@ -1,6 +1,5 @@
 import logging
-from uuid import uuid4, UUID
-import pathlib
+from uuid import UUID
 import graphene
 from django.db.models import Count, Case, When, IntegerField, Prefetch
 
@@ -37,6 +36,7 @@ from claim.api_errors import (
 from claim.submission_pipeline import claim_submission_queryset
 from claim.audit_governance import record_claim_audit_event, record_mutation_audit
 from claim.attachment_validation import validate_attachment_input
+from claim.attachment_service import create_attachment, create_attachments, create_file
 
 from medical.models import Item, Service
 
@@ -281,64 +281,6 @@ class ClaimInputType(OpenIMISMutation.Input):
 
 class CreateClaimInputType(ClaimInputType):
     attachments = graphene.List(ClaimAttachmentInputType, required=False)
-
-
-def create_file(date, claim_id, document_bytes: bytes):
-    date_iso = date.isoformat()
-    root = ClaimConfig.claim_attachments_root_path
-    file_dir = "%s/%s/%s/%s" % (date_iso[0:4], date_iso[5:7], date_iso[8:10], claim_id)
-    file_path = "%s/%s" % (file_dir, uuid4())
-    pathlib.Path("%s/%s" % (root, file_dir)).mkdir(parents=True, exist_ok=True)
-    with open("%s/%s" % (root, file_path), "xb") as f:
-        f.write(document_bytes)
-    return file_path
-
-
-def create_attachment(claim_id, data):
-    data["claim_id"] = claim_id
-    from core import datetime
-
-    now = datetime.datetime.now()
-    general_type = data['general_type'] if data.get("general_type") else GeneralClaimAttachmentType.FILE  # default to adjust FHIR attachments type fallback to FILE
-    data['module'] = 'claim'
-    if not data.get('predefined_type'):
-        data['predefined_type'] = 'default'  # default to adjust for FHIR predefined is fallbacked to default
-
-    decoded_document = validate_attachment_input(
-        data, strategies=attachment_strategies_dict.keys()
-    )
-
-    if general_type == GeneralClaimAttachmentType.URL:
-        if data["predefined_type"] in attachment_strategies_dict:
-            data["url"] = attachment_strategies_dict[data["predefined_type"]].handler(
-                data
-            )
-            data["document"] = data["url"]
-        data["predefined_type"] = ClaimAttachmentType.objects.get(
-            validity_to__isnull=True,
-            claim_general_type="URL",
-            claim_attachment_type=data["predefined_type"],
-        )
-    elif general_type == GeneralClaimAttachmentType.FILE:
-        if ClaimConfig.claim_attachments_root_path:
-            if decoded_document is None:
-                raise ValidationError(_("claim.validation.attachment_document_required"))
-            data["url"] = create_file(now, claim_id, decoded_document)
-            data.pop("document", None)
-        data["predefined_type"] = ClaimAttachmentType.objects.get(
-            validity_to__isnull=True,
-            claim_general_type="FILE",
-            claim_attachment_type=data["predefined_type"],
-        )
-    else:
-        raise ValidationError(_("mutation.attachment_general_type_incorrect"))
-    data["validity_from"] = now
-    ClaimAttachment.objects.create(**data)
-
-
-def create_attachments(claim_id, attachments):
-    for attachment in attachments:
-        create_attachment(claim_id, attachment)
 
 
 def validate_claim_data(data, user):

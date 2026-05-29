@@ -1,40 +1,33 @@
 import graphene
-from enum import Enum
 import logging
-from core.models import Officer, MutationLog
-from insuree.models import Insuree
-from .services import check_unique_claim_code
+from core.models import MutationLog
 from core.schema import (
     signal_mutation_module_validate,
     signal_mutation_module_after_mutating,
 )
-from django.db.models import Subquery, Q
-from claim.diagnosis_variance import build_diagnosis_variance_filter
-import graphene_django_optimizer as gql_optimizer
 from core.schema import OrderedDjangoFilterConnectionField, OfficerGQLType
 from .models import ClaimMutation, Claim
 from graphene_django.filter import DjangoFilterConnectionField
-from claim.api_errors import get_insuree_health_facility_for_fsp, get_valid_claim
-from claim.read_queryset import apply_claim_read_prefetches
-from claim.gql_authorization import require_query_permission
-from claim.models import ClaimAttachment, ClaimAttachmentType
-from claim.query_cache import (
-    attachment_types_cache_key,
-    bump_list_cache_version,
-    cached_or_load,
-    cached_queryset_pks,
-    claim_list_cache_key,
-    invalidate_claim_cache,
-    officers_cache_key,
-)
-# We do need all queries and mutations in the namespace here.
-
-from location.schema import HealthFacilityGQLType
-from .gql_queries import (
+from claim.query_cache import bump_list_cache_version, invalidate_claim_cache
+from claim.gql_queries import (
     ClaimAttachmentTypeGQLType,
     ClaimGQLType,
     ClaimAttachmentGQLType,
     ClaimJobGQLType,
+)
+from claim.schema_resolvers import (
+    resolve_claim,
+    resolve_claim_attachment_type,
+    resolve_claim_attachments,
+    resolve_claim_history,
+    resolve_claim_job,
+    resolve_claim_jobs,
+    resolve_claim_officers,
+    resolve_claim_with_same_diagnosis,
+    resolve_claims,
+    resolve_fsp_from_claim,
+    resolve_insuree_name_by_chfid,
+    resolve_validate_claim_code,
 )
 from .gql_mutations import (
     DeleteClaimsMutation,
@@ -53,8 +46,10 @@ from .gql_mutations import (
     UpdateAttachmentMutation,
     CreateAttachmentMutation,
     UpdateClaimMutation,
-    CreateClaimMutation
+    CreateClaimMutation,
 )
+
+from location.schema import HealthFacilityGQLType
 
 logger = logging.getLogger(__name__)
 
@@ -126,224 +121,44 @@ class Query(graphene.ObjectType):
         attachment_status=graphene.Int(required=False),
         care_type=graphene.String(required=False),
         show_restored=graphene.Boolean(required=False),
-        rejection_code=graphene.Int(required=False)
+        rejection_code=graphene.Int(required=False),
     )
 
     def resolve_insuree_name_by_chfid(self, info, **kwargs):
-        require_query_permission(info, "insuree_name_by_chfid")
-        chf_id = kwargs.get("chfId")
-        insuree = (
-            Insuree.objects.filter(validity_to__isnull=True, chf_id=chf_id)
-            .values("last_name", "other_names")
-            .first()
-        )
-        if insuree:
-            insuree_name = f"{insuree['other_names']} {insuree['last_name']}"
-        else:
-            insuree_name = ""
-        return insuree_name
+        return resolve_insuree_name_by_chfid(info, **kwargs)
 
     def resolve_validate_claim_code(self, info, **kwargs):
-        require_query_permission(info, "validate_claim_code")
-        errors = check_unique_claim_code(code=kwargs["claim_code"])
-        return False if errors else True
+        return resolve_validate_claim_code(info, **kwargs)
 
     def resolve_claim_job(self, info, uuid, **kwargs):
-        require_query_permission(info, "claim_job")
-        from claim.job_queue import get_job_by_uuid
-
-        return get_job_by_uuid(uuid)
+        return resolve_claim_job(info, uuid, **kwargs)
 
     def resolve_claim_jobs(self, info, **kwargs):
-        require_query_permission(info, "claim_jobs")
-        from claim.models import ClaimJob
-
-        return ClaimJob.get_queryset(ClaimJob.objects.all(), info)
+        return resolve_claim_jobs(info, **kwargs)
 
     def resolve_claim(self, info, id=None, uuid=None, **kwargs):
-        require_query_permission(info, "claim")
-        return get_valid_claim(claim_id=id, claim_uuid=uuid)
+        return resolve_claim(info, id=id, uuid=uuid, **kwargs)
 
     def resolve_claims(self, info, **kwargs):
-        class AttachmentStatusEnum(Enum):
-            NONE = 0
-            WITH = 1
-            WITHOUT = 2
-
-        require_query_permission(info, "claims")
-        query = Claim.objects
-        filters = []
-
-        show_restored = kwargs.get("show_restored", None)
-        if show_restored:
-            filters.append(Q(restore__isnull=False))
-
-        items = kwargs.get("items", None)
-        services = kwargs.get("services", None)
-
-        if items:
-            filters.append(Q(items__item__code__in=items))
-
-        if services:
-            filters.append(Q(services__service__code__in=services))
-
-        attachment_status = kwargs.get("attachment_status", 0)
-        if attachment_status == AttachmentStatusEnum.WITH.value:
-            filters.append(Q(attachments__isnull=False))
-        elif attachment_status == AttachmentStatusEnum.WITHOUT.value:
-            filters.append(Q(attachments__isnull=True))
-
-        care_type = kwargs.get("care_type", None)
-
-        if care_type:
-            filters.append(Q(care_type=care_type))
-
-        json_ext = kwargs.get("json_ext", None)
-
-        if json_ext:
-            filters.append(Q(json_ext__jsoncontains=json_ext))
-        variance = kwargs.get("diagnosisVariance", None)
-        if variance:
-            from core import datetime, datetimedelta
-
-            last_year = datetime.date.today() + datetimedelta(years=-1)
-            filters.append(
-                build_diagnosis_variance_filter(
-                    variance,
-                    validity_filters=Claim.filter_validity(**kwargs),
-                    last_year_date=last_year,
-                )
-            )
-        # filtered already in get_queryser
-        # query = query.filter(
-        #   LocationManager().build_user_location_filter_query(
-        #       info.context.user._u, prefix='health_facility__location'
-        #   )
-        # )
-        code_is_not = kwargs.get("code_is_not", None)
-
-        if len(filters):
-            query = query.filter(*filters)
-        if code_is_not:
-            query = query.exclude(code=code_is_not)
-
-        if len(filters) == 0 and not code_is_not:
-            query = query.all()
-
-        from claim.apps import ClaimConfig
-
-        list_key = claim_list_cache_key(
-            {
-                "filters": [str(f) for f in filters],
-                "code_is_not": code_is_not,
-                "variance": variance,
-                "user_id": getattr(info.context.user, "id", None),
-            }
-        )
-        query = cached_queryset_pks(
-            list_key,
-            query,
-            timeout=ClaimConfig.query_cache_list_ttl,
-        )
-        return gql_optimizer.query(apply_claim_read_prefetches(query), info)
+        return resolve_claims(info, **kwargs)
 
     def resolve_claim_attachments(self, info, **kwargs):
-        require_query_permission(info, "claim_attachments")
-        return ClaimAttachment.objects.filter(*ClaimAttachment.filter_validity())
+        return resolve_claim_attachments(info, **kwargs)
 
     def resolve_claim_officers(self, info, search=None, **kwargs):
-        require_query_permission(info, "claim_officers")
-
-        from claim.apps import ClaimConfig
-
-        def _load_officer_pks():
-            qs = Officer.objects
-            if search is not None:
-                qs = qs.filter(
-                    Q(code__icontains=search)
-                    | Q(last_name__icontains=search)
-                    | Q(other_names__icontains=search)
-                )
-            return list(qs.values_list("pk", flat=True))
-
-        pks = cached_or_load(
-            officers_cache_key(search),
-            _load_officer_pks,
-            timeout=ClaimConfig.query_cache_reference_ttl,
-        )
-        if not pks:
-            return Officer.objects.none()
-        return Officer.objects.filter(pk__in=pks)
+        return resolve_claim_officers(info, search=search, **kwargs)
 
     def resolve_claim_attachment_type(self, info, **kwargs):
-        require_query_permission(info, "claim_attachment_type")
-
-        from claim.apps import ClaimConfig
-
-        def _load_attachment_type_pks():
-            return list(
-                ClaimAttachmentType.objects.filter(
-                    *ClaimAttachmentType.filter_validity()
-                ).values_list("pk", flat=True)
-            )
-
-        pks = cached_or_load(
-            attachment_types_cache_key(),
-            _load_attachment_type_pks,
-            timeout=ClaimConfig.query_cache_reference_ttl,
-        )
-        if not pks:
-            return ClaimAttachmentType.objects.none()
-        return ClaimAttachmentType.objects.filter(pk__in=pks)
+        return resolve_claim_attachment_type(info, **kwargs)
 
     def resolve_fsp_from_claim(self, info, **kwargs):
-        require_query_permission(info, "fsp_from_claim")
-        return get_insuree_health_facility_for_fsp(
-            kwargs["insuree_code"], kwargs["date_claimed"]
-        )
+        return resolve_fsp_from_claim(info, **kwargs)
 
     def resolve_claim_with_same_diagnosis(self, info, **kwargs):
-        require_query_permission(info, "claim_with_same_diagnosis")
-
-        from claim.referral_diagnosis import build_same_diagnosis_filter
-
-        qs = Claim.objects.filter(
-            build_same_diagnosis_filter(
-                icd_code=kwargs["icd"],
-                chf_id=kwargs["chfid"],
-            )
-        ).order_by("date_claimed")
-        return qs
+        return resolve_claim_with_same_diagnosis(info, **kwargs)
 
     def resolve_claim_history(self, info, **kwargs):
-        claim_uuid = kwargs.get('claim_uuid')
-
-        require_query_permission(info, "claim_history")
-
-        query = Claim.objects.filter(
-            legacy_id=Subquery(Claim.objects.filter(uuid=claim_uuid).values('id')),
-            validity_to__isnull=False
-        )
-
-        filters = []
-
-        if "care_type" in kwargs and kwargs["care_type"]:
-            filters.append(Q(care_type=kwargs["care_type"]))
-
-        if "attachment_status" in kwargs:
-            status = kwargs["attachment_status"]
-            if status == 1:  # WITH
-                filters.append(Q(attachments__isnull=False))
-            elif status == 2:  # WITHOUT
-                filters.append(Q(attachments__isnull=True))
-
-        if "code_is_not" in kwargs and kwargs["code_is_not"]:
-            filters.append(~Q(code=kwargs["code_is_not"]))
-
-        if filters:
-            query = query.filter(*filters).distinct()
-
-        return gql_optimizer.query(apply_claim_read_prefetches(query), info)
+        return resolve_claim_history(info, **kwargs)
 
 
 class Mutation(graphene.ObjectType):
