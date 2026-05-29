@@ -4,6 +4,7 @@ WO-029: Focused service modules with backward-compatible re-exports.
 Public callers should continue importing from ``claim.services``.
 """
 
+from claim.apps import ClaimConfig  # noqa: F401
 from claim.services.persistence import (  # noqa: F401
     check_unique_claim_code,
     claim_create,
