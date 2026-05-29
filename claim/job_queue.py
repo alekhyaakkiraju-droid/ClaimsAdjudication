@@ -8,7 +8,7 @@ synchronous execution when queuing is disabled or below the async threshold.
 from __future__ import annotations
 
 import logging
-from typing import Any, List, Optional, Sequence
+from typing import Any, Optional, Sequence
 
 from django.db import transaction
 from django.utils import timezone

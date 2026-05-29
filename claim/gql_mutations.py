@@ -48,7 +48,6 @@ from claim.services import (
     update_or_create_claim as service_update_or_create_claim,
     ClaimSubmitService,
     processing_claim as service_processing_claim,
-    process_claims_batch,
     process_claims_batch_or_enqueue,
     create_feedback_prompt as service_create_feedback_prompt,
     update_claims_dedrems,
