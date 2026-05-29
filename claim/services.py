@@ -739,6 +739,25 @@ def process_claims_batch(uuids, user):
     return errors
 
 
+def process_claims_batch_or_enqueue(uuids, user, *, client_mutation_id=None):
+    """
+    Process claims synchronously or enqueue when batch size meets the async threshold.
+
+    Returns (errors, queued_job) where queued_job is set when work was enqueued.
+    """
+    from claim.job_queue import enqueue_process_claims, should_enqueue_batch
+
+    uuid_list = uuids or []
+    if should_enqueue_batch(uuid_list):
+        job = enqueue_process_claims(
+            uuid_list,
+            user,
+            client_mutation_id=client_mutation_id,
+        )
+        return [], job
+    return process_claims_batch(uuid_list, user), None
+
+
 # refactor back compatibility
 validate_and_process_dedrem_claim = processing_claim
 

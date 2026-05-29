@@ -46,6 +46,10 @@ DEFAULT_CFG = {
     "query_cache_reference_ttl": 300,
     "query_cache_detail_ttl": 120,
     "query_cache_list_ttl": 60,
+    "job_queue_enabled": True,
+    "job_queue_async_threshold": 0,
+    "job_queue_max_retries": 3,
+    "job_queue_name": "default",
 }
 
 
@@ -94,6 +98,10 @@ class ClaimConfig(AppConfig):
     query_cache_reference_ttl = 300
     query_cache_detail_ttl = 120
     query_cache_list_ttl = 60
+    job_queue_enabled = True
+    job_queue_async_threshold = 0
+    job_queue_max_retries = 3
+    job_queue_name = "default"
 
     def __load_config(self, cfg):
         for field in cfg:

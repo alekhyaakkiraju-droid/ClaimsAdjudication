@@ -34,6 +34,7 @@ from .gql_queries import (
     ClaimAttachmentTypeGQLType,
     ClaimGQLType,
     ClaimAttachmentGQLType,
+    ClaimJobGQLType,
 )
 from .gql_mutations import (
     DeleteClaimsMutation,
@@ -103,6 +104,16 @@ class Query(graphene.ObjectType):
 
     claim_attachment_type = DjangoFilterConnectionField(ClaimAttachmentTypeGQLType)
 
+    claim_job = graphene.Field(
+        ClaimJobGQLType,
+        uuid=graphene.String(required=True),
+        description="Return status for a database-backed claim background job.",
+    )
+    claim_jobs = DjangoFilterConnectionField(
+        ClaimJobGQLType,
+        description="List claim background jobs (newest first).",
+    )
+
     claim_history = OrderedDjangoFilterConnectionField(
         ClaimGQLType,
         claim_uuid=graphene.String(required=True),
@@ -136,6 +147,18 @@ class Query(graphene.ObjectType):
         require_query_permission(info, "validate_claim_code")
         errors = check_unique_claim_code(code=kwargs["claim_code"])
         return False if errors else True
+
+    def resolve_claim_job(self, info, uuid, **kwargs):
+        require_query_permission(info, "claim_job")
+        from claim.job_queue import get_job_by_uuid
+
+        return get_job_by_uuid(uuid)
+
+    def resolve_claim_jobs(self, info, **kwargs):
+        require_query_permission(info, "claim_jobs")
+        from claim.models import ClaimJob
+
+        return ClaimJob.get_queryset(ClaimJob.objects.all(), info)
 
     def resolve_claim(self, info, id=None, uuid=None, **kwargs):
         require_query_permission(info, "claim")

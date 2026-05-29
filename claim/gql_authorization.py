@@ -93,6 +93,8 @@ GQL_QUERY_PERMISSION_MAP = {
         "gql_mutation_update_claims_perms",
     ),
     "claim_gql_type": "gql_query_claims_perms",
+    "claim_job": "gql_mutation_process_claims_perms",
+    "claim_jobs": "gql_mutation_process_claims_perms",
 }
 
 

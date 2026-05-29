@@ -854,3 +854,47 @@ class ClaimDedRem(core_models.VersionedModel):
     class Meta:
         managed = True
         db_table = "tblClaimDedRem"
+
+
+class ClaimJob(models.Model):
+    """WO-026: Database-backed job queue for long-running claim operations."""
+
+    STATUS_PENDING = "pending"
+    STATUS_RUNNING = "running"
+    STATUS_COMPLETED = "completed"
+    STATUS_FAILED = "failed"
+
+    JOB_PROCESS_CLAIMS = "process_claims"
+    JOB_GENERATE_REPORT = "generate_report"
+
+    uuid = models.CharField(max_length=36, default=uuid.uuid4, unique=True)
+    job_type = models.CharField(max_length=64)
+    status = models.CharField(max_length=16, default=STATUS_PENDING)
+    queue_name = models.CharField(max_length=64, default="default")
+    priority = models.IntegerField(default=0)
+    payload = models.JSONField(default=dict)
+    result = models.JSONField(blank=True, null=True)
+    last_error = models.TextField(blank=True, null=True)
+    retry_count = models.IntegerField(default=0)
+    max_retries = models.IntegerField(default=3)
+    audit_user_id = models.IntegerField(blank=True, null=True)
+    client_mutation_id = models.CharField(max_length=255, blank=True, null=True)
+    created = models.DateTimeField(default=django_tz.now)
+    started_at = fields.DateTimeField(blank=True, null=True)
+    completed_at = fields.DateTimeField(blank=True, null=True)
+
+    class Meta:
+        managed = True
+        db_table = "claim_ClaimJob"
+        indexes = [
+            models.Index(fields=["status", "queue_name", "priority", "created"]),
+        ]
+
+    @classmethod
+    def get_queryset(cls, queryset, user):
+        queryset = queryset.order_by("-created")
+        if isinstance(user, ResolveInfo):
+            user = user.context.user
+        if settings.ROW_SECURITY and user.is_anonymous:
+            return queryset.filter(id=-1)
+        return queryset
