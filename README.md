@@ -28,6 +28,8 @@ Submission pipeline (WO-017): **[docs/SUBMISSION_PIPELINE_OPTIMIZATION.md](docs/
 
 Claim read optimization (WO-018): **[docs/CLAIM_READ_OPTIMIZATION.md](docs/CLAIM_READ_OPTIMIZATION.md)** — `claim/read_queryset.py`.
 
+Service boundaries (WO-029): **[docs/SERVICE_BOUNDARIES.md](docs/SERVICE_BOUNDARIES.md)** — `claim/services/`, `claim/validations/`, `claim/attachment_service.py`, `claim/schema_resolvers.py`.
+
 [![License: AGPL v3](https://img.shields.io/badge/License-AGPL%20v3-blue.svg)](https://www.gnu.org/licenses/agpl-3.0)
 
 ## Code climate (develop branch)
