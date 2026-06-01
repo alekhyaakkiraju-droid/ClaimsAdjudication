@@ -186,6 +186,32 @@ def create_test_claimservice(
     return service
 
 
+def create_test_claim_with_item_and_service(*, claim_code: str, item_service_code: str):
+    """Claim with one valid item and service for report/read-path tests."""
+    claim = create_test_claim(custom_props={"code": claim_code})
+    item = create_test_item(item_service_code)
+    service = create_test_service(item_service_code)
+    create_test_claimitem(
+        claim,
+        custom_props={
+            "item": item,
+            "qty_provided": 1,
+            "price_asked": 10,
+            "validity_from": claim.validity_from,
+        },
+    )
+    create_test_claimservice(
+        claim,
+        custom_props={
+            "service": service,
+            "qty_provided": 1,
+            "price_asked": 20,
+            "validity_from": claim.validity_from,
+        },
+    )
+    return claim
+
+
 def mark_test_claim_as_processed(claim, status=Claim.STATUS_CHECKED, audit_user_id=-1):
     claim.approved = approved_amount(claim)
     claim.status = status

@@ -22,39 +22,11 @@ from claim.reports.queryset import (
 )
 from claim.services import ClaimReportService
 from claim.test_helpers import (
-    create_test_claim,
-    create_test_claimitem,
-    create_test_claimservice,
+    create_test_claim_with_item_and_service,
     delete_claim_with_itemsvc_dedrem_and_history,
 )
 from core.test_helpers import create_test_interactive_user
 from location.models import Location
-from medical.test_helpers import create_test_item, create_test_service
-
-
-def _create_claim_with_children(*, claim_code: str, item_service_code: str):
-    claim = create_test_claim(custom_props={"code": claim_code})
-    item = create_test_item(item_service_code)
-    service = create_test_service(item_service_code)
-    create_test_claimitem(
-        claim,
-        custom_props={
-            "item": item,
-            "qty_provided": 1,
-            "price_asked": 10,
-            "validity_from": claim.validity_from,
-        },
-    )
-    create_test_claimservice(
-        claim,
-        custom_props={
-            "service": service,
-            "qty_provided": 1,
-            "price_asked": 20,
-            "validity_from": claim.validity_from,
-        },
-    )
-    return claim
 
 
 class ReportQuerysetPrefetchTest(TestCase):
@@ -64,7 +36,7 @@ class ReportQuerysetPrefetchTest(TestCase):
         cls.user = create_test_interactive_user(username="wo028-prefetch")
 
     def test_claim_detail_report_queryset_prefetches_nested_relations(self):
-        claim = _create_claim_with_children(
+        claim = create_test_claim_with_item_and_service(
             claim_code=f"WO028-PF-{uuid4().hex[:8]}",
             item_service_code="R",
         )
@@ -88,7 +60,7 @@ class ReportQuerysetPrefetchTest(TestCase):
         delete_claim_with_itemsvc_dedrem_and_history(claim)
 
     def test_claim_print_report_queryset_prefetches_icd_and_children(self):
-        claim = _create_claim_with_children(
+        claim = create_test_claim_with_item_and_service(
             claim_code=f"WO028-PR-{uuid4().hex[:8]}",
             item_service_code="P",
         )
@@ -102,7 +74,7 @@ class ReportQuerysetPrefetchTest(TestCase):
         delete_claim_with_itemsvc_dedrem_and_history(claim)
 
     def test_claim_operational_indicators_queryset_prefetches_children(self):
-        claim = _create_claim_with_children(
+        claim = create_test_claim_with_item_and_service(
             claim_code=f"WO028-OP-{uuid4().hex[:8]}",
             item_service_code="O",
         )
@@ -128,7 +100,7 @@ class ReportQueryCountTest(TestCase):
         cls.user = create_test_interactive_user(username="wo028-querycount")
         cls.claims = []
         for idx in range(8):
-            claim = _create_claim_with_children(
+            claim = create_test_claim_with_item_and_service(
                 claim_code=f"WO028-Q{idx}-{uuid4().hex[:8]}",
                 item_service_code=string.ascii_uppercase[idx],
             )
@@ -190,7 +162,7 @@ class ReportQueryIntegrationTest(TestCase):
     def setUpClass(cls):
         super().setUpClass()
         cls.user = create_test_interactive_user(username="wo028-integration")
-        cls.claim = _create_claim_with_children(
+        cls.claim = create_test_claim_with_item_and_service(
             claim_code=f"WO028-INT-{uuid4().hex[:8]}",
             item_service_code="I",
         )
