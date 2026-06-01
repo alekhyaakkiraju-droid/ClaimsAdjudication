@@ -30,6 +30,8 @@ Claim read optimization (WO-018): **[docs/CLAIM_READ_OPTIMIZATION.md](docs/CLAIM
 
 Service boundaries (WO-029): **[docs/SERVICE_BOUNDARIES.md](docs/SERVICE_BOUNDARIES.md)** — `claim/services/`, `claim/validations/`, `claim/attachment_service.py`, `claim/schema_resolvers.py`.
 
+XML serializer (WO-030): **[docs/XML_SERIALIZER.md](docs/XML_SERIALIZER.md)** — `claim/serializers/xml_serializer.py`.
+
 [![License: AGPL v3](https://img.shields.io/badge/License-AGPL%20v3-blue.svg)](https://www.gnu.org/licenses/agpl-3.0)
 
 ## Code climate (develop branch)

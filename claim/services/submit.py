@@ -19,7 +19,7 @@ from claim.utils import (
 from claim.validations import get_claim_category
 
 from claim.services.processing import processing_claim
-from claim.services.xml_submit import ClaimSubmit
+from claim.serializers.xml_serializer import ClaimSubmit
 
 
 class ClaimSubmitError(Exception):

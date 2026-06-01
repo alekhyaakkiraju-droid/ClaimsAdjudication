@@ -1,4 +1,4 @@
-"""Backward-compatible re-exports (WO-030: see claim.serializers.xml_serializer)."""
+"""Claim serializers (WO-030)."""
 
 from claim.serializers.xml_serializer import (  # noqa: F401
     ClaimElementSubmit,
