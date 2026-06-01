@@ -55,6 +55,8 @@ logger = logging.getLogger(__name__)
 
 
 class Query(graphene.ObjectType):
+    """Claim module GraphQL queries. Permissions via claim/gql_authorization.py."""
+
     claims = OrderedDjangoFilterConnectionField(
         ClaimGQLType,
         diagnosisVariance=graphene.Int(),
@@ -66,17 +68,31 @@ class Query(graphene.ObjectType):
         attachment_status=graphene.Int(required=False),
         care_type=graphene.String(required=False),
         show_restored=graphene.Boolean(required=False),
+        description="Paginated claim list with optional filters (row-security aware).",
     )
 
-    claim = graphene.Field(ClaimGQLType, id=graphene.Int(), uuid=graphene.UUID())
+    claim = graphene.Field(
+        ClaimGQLType,
+        id=graphene.Int(),
+        uuid=graphene.UUID(),
+        description="Single claim by database id or UUID.",
+    )
 
-    claim_attachments = DjangoFilterConnectionField(ClaimAttachmentGQLType)
+    claim_attachments = DjangoFilterConnectionField(
+        ClaimAttachmentGQLType,
+        description="Claim attachments visible to the caller.",
+    )
 
     claim_officers = DjangoFilterConnectionField(
-        OfficerGQLType, search=graphene.String()
+        OfficerGQLType,
+        search=graphene.String(),
+        description="Officers eligible for claim feedback (search optional).",
     )
 
-    insuree_name_by_chfid = graphene.String(chfId=graphene.String(required=True))
+    insuree_name_by_chfid = graphene.String(
+        chfId=graphene.String(required=True),
+        description="Resolve insuree display name from CHF id during claim entry.",
+    )
 
     validate_claim_code = graphene.Field(
         graphene.Boolean,
@@ -122,6 +138,7 @@ class Query(graphene.ObjectType):
         care_type=graphene.String(required=False),
         show_restored=graphene.Boolean(required=False),
         rejection_code=graphene.Int(required=False),
+        description="Historical versions of a claim (validity_to set).",
     )
 
     def resolve_insuree_name_by_chfid(self, info, **kwargs):
@@ -162,23 +179,59 @@ class Query(graphene.ObjectType):
 
 
 class Mutation(graphene.ObjectType):
-    create_claim = CreateClaimMutation.Field()
-    update_claim = UpdateClaimMutation.Field()
-    create_claim_attachment = CreateAttachmentMutation.Field()
-    update_claim_attachment = UpdateAttachmentMutation.Field()
-    delete_claim_attachment = DeleteAttachmentMutation.Field()
-    submit_claims = SubmitClaimsMutation.Field()
-    select_claims_for_feedback = SelectClaimsForFeedbackMutation.Field()
-    deliver_claim_feedback = DeliverClaimFeedbackMutation.Field()
-    bypass_claims_feedback = BypassClaimsFeedbackMutation.Field()
-    skip_claims_feedback = SkipClaimsFeedbackMutation.Field()
-    select_claims_for_review = SelectClaimsForReviewMutation.Field()
-    save_claim_review = SaveClaimReviewMutation.Field()
-    deliver_claims_review = DeliverClaimsReviewMutation.Field()
-    bypass_claims_review = BypassClaimsReviewMutation.Field()
-    skip_claims_review = SkipClaimsReviewMutation.Field()
-    process_claims = ProcessClaimsMutation.Field()
-    delete_claims = DeleteClaimsMutation.Field()
+    """Claim module GraphQL mutations. Errors use OpenIMIS mutation error list shape."""
+
+    create_claim = CreateClaimMutation.Field(
+        description="Create a claim in ENTERED status with items/services."
+    )
+    update_claim = UpdateClaimMutation.Field(
+        description="Update an existing claim and child lines."
+    )
+    create_claim_attachment = CreateAttachmentMutation.Field(
+        description="Add an attachment to a claim (file or URL strategy)."
+    )
+    update_claim_attachment = UpdateAttachmentMutation.Field(
+        description="Update attachment metadata or content."
+    )
+    delete_claim_attachment = DeleteAttachmentMutation.Field(
+        description="Soft-delete a claim attachment."
+    )
+    submit_claims = SubmitClaimsMutation.Field(
+        description="Submit one or more claims for validation and CHECKED/REJECTED status."
+    )
+    select_claims_for_feedback = SelectClaimsForFeedbackMutation.Field(
+        description="Mark claims selected for community feedback."
+    )
+    deliver_claim_feedback = DeliverClaimFeedbackMutation.Field(
+        description="Record delivered feedback for a claim."
+    )
+    bypass_claims_feedback = BypassClaimsFeedbackMutation.Field(
+        description="Bypass feedback requirement for claims."
+    )
+    skip_claims_feedback = SkipClaimsFeedbackMutation.Field(
+        description="Skip feedback selection for claims."
+    )
+    select_claims_for_review = SelectClaimsForReviewMutation.Field(
+        description="Select claims for medical review."
+    )
+    save_claim_review = SaveClaimReviewMutation.Field(
+        description="Save in-progress review adjustments."
+    )
+    deliver_claims_review = DeliverClaimsReviewMutation.Field(
+        description="Finalize review for selected claims."
+    )
+    bypass_claims_review = BypassClaimsReviewMutation.Field(
+        description="Bypass review for selected claims."
+    )
+    skip_claims_review = SkipClaimsReviewMutation.Field(
+        description="Skip review selection for claims."
+    )
+    process_claims = ProcessClaimsMutation.Field(
+        description="Process/valuate claims (sync or async via job queue)."
+    )
+    delete_claims = DeleteClaimsMutation.Field(
+        description="Soft-delete claims by UUID."
+    )
 
 
 def on_claim_mutation(sender, **kwargs):
