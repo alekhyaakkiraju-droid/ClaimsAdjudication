@@ -7,7 +7,7 @@ module rather than ad-hoc inline has_perms calls.
 
 from __future__ import annotations
 
-from typing import List, Sequence, Tuple, Union
+from typing import Any, List, Sequence, Tuple, Union
 
 from django.conf import settings
 from django.contrib.auth.models import AnonymousUser
@@ -29,7 +29,7 @@ def _perms_from_config(attr: str) -> List[str]:
     return list(getattr(ClaimConfig, attr, None) or [])
 
 
-def _user_has_perm_spec(user, spec: PermSpec) -> bool:
+def _user_has_perm_spec(user: Any, spec: PermSpec) -> bool:
     if not spec:
         return True
     if spec and isinstance(spec[0], (list, tuple)):
@@ -41,12 +41,12 @@ def _deny_unauthorized() -> None:
     raise PermissionDenied(_("unauthorized"))
 
 
-def require_authenticated_mutation_user(user) -> None:
+def require_authenticated_mutation_user(user: Any) -> None:
     if type(user) is AnonymousUser or not getattr(user, "id", None):
         raise ValidationError(_("mutation.authentication_required"))
 
 
-def require_mutation_permission(user, mutation_class: str) -> None:
+def require_mutation_permission(user: Any, mutation_class: str) -> None:
     """Enforce permissions for a claim GraphQL mutation by _mutation_class name."""
     config_key = GQL_MUTATION_PERMISSION_MAP.get(mutation_class)
     if config_key is None:
@@ -55,7 +55,7 @@ def require_mutation_permission(user, mutation_class: str) -> None:
         _deny_unauthorized()
 
 
-def require_query_permission(info, operation: str) -> None:
+def require_query_permission(info: Any, operation: str) -> None:
     """Enforce permissions for a claim GraphQL query or resolver operation."""
     spec = GQL_QUERY_PERMISSION_MAP.get(operation)
     if spec is None:
@@ -98,7 +98,7 @@ GQL_QUERY_PERMISSION_MAP = {
 }
 
 
-def require_restore_permission(user) -> None:
+def require_restore_permission(user: Any) -> None:
     """Enforce restore-specific mutation permissions."""
     if not _user_has_perm_spec(user, _perms_from_config("gql_mutation_restore_claims_perms")):
         raise ValidationError(_("mutation.no_restore_rights"))

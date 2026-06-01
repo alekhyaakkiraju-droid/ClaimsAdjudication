@@ -16,7 +16,7 @@
 
 - **Build** — `python -m build` from `pyproject.toml`
 - **Lint** — `flake8 claim` (blocking; ignores E501/W503 like assembly CI)
-- **Type check** — `scripts/run-forge-mypy-gate.sh` (baseline mypy; WO-031 will tighten)
+- **Type check** — `scripts/run-forge-mypy-gate.sh` (strict on public API modules; see [TYPE_ANNOTATIONS.md](TYPE_ANNOTATIONS.md))
 - **Dependency scan** — `pip-audit` on `pyproject.toml` direct dependencies
 - **SAST** — Bandit on `claim/` (high severity only)
 - **Secret scan** — Gitleaks on full history

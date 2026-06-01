@@ -5,6 +5,7 @@ Safe lookups and consistent client-facing errors (WO-014).
 from __future__ import annotations
 
 import logging
+from datetime import date
 from typing import Any, Dict, List, Optional, Union
 from uuid import UUID
 
@@ -19,7 +20,11 @@ from insuree.models import Insuree
 logger = logging.getLogger(__name__)
 
 
-def get_valid_claim(*, claim_id: Optional[int] = None, claim_uuid: Optional[Union[str, UUID]] = None):
+def get_valid_claim(
+    *,
+    claim_id: Optional[int] = None,
+    claim_uuid: Optional[Union[str, UUID]] = None,
+) -> Optional[Claim]:
     """Return a valid claim or None without raising DoesNotExist."""
     cached_pk = get_cached_claim_pk(claim_id=claim_id, claim_uuid=claim_uuid)
     qs = claim_read_queryset(Claim.objects.filter(*Claim.filter_validity()))
@@ -39,7 +44,7 @@ def get_valid_claim(*, claim_id: Optional[int] = None, claim_uuid: Optional[Unio
     return None
 
 
-def get_insuree_health_facility_for_fsp(insuree_code: str, date_claimed):
+def get_insuree_health_facility_for_fsp(insuree_code: str, date_claimed: date) -> Any:
     """
     Resolve FSP (health facility) for an insuree at a date.
     Returns None when insuree is missing (no NPE).
@@ -57,7 +62,7 @@ def get_insuree_health_facility_for_fsp(insuree_code: str, date_claimed):
     return insuree.health_facility
 
 
-def claim_not_found_errors(claim_uuid) -> List[Dict[str, Any]]:
+def claim_not_found_errors(claim_uuid: Union[str, UUID]) -> List[Dict[str, Any]]:
     return [
         {
             "message": _("claim.validation.id_does_not_exist") % {"id": claim_uuid},
@@ -65,7 +70,11 @@ def claim_not_found_errors(claim_uuid) -> List[Dict[str, Any]]:
     ]
 
 
-def mutation_error_list(message, claim_code=None, exc: Optional[BaseException] = None):
+def mutation_error_list(
+    message: Union[str, Any],
+    claim_code: Optional[str] = None,
+    exc: Optional[BaseException] = None,
+) -> List[Dict[str, Any]]:
     """
     OpenIMIS mutation error shape. Unexpected exceptions are logged; details are
     not leaked to clients.

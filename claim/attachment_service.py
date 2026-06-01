@@ -1,6 +1,10 @@
 """Claim attachment persistence helpers (WO-029)."""
 
+from __future__ import annotations
+
 import pathlib
+from datetime import datetime
+from typing import Any, Dict, List
 from uuid import uuid4
 
 from django.core.exceptions import ValidationError
@@ -12,7 +16,7 @@ from claim.attachment_validation import validate_attachment_input
 from claim.models import ClaimAttachment, ClaimAttachmentType, GeneralClaimAttachmentType
 
 
-def create_file(date, claim_id, document_bytes: bytes):
+def create_file(date: datetime, claim_id: int, document_bytes: bytes) -> str:
     date_iso = date.isoformat()
     root = ClaimConfig.claim_attachments_root_path
     file_dir = "%s/%s/%s/%s" % (date_iso[0:4], date_iso[5:7], date_iso[8:10], claim_id)
@@ -23,7 +27,7 @@ def create_file(date, claim_id, document_bytes: bytes):
     return file_path
 
 
-def create_attachment(claim_id, data):
+def create_attachment(claim_id: int, data: Dict[str, Any]) -> None:
     data["claim_id"] = claim_id
     from core import datetime
 
@@ -69,6 +73,6 @@ def create_attachment(claim_id, data):
     ClaimAttachment.objects.create(**data)
 
 
-def create_attachments(claim_id, attachments):
+def create_attachments(claim_id: int, attachments: List[Dict[str, Any]]) -> None:
     for attachment in attachments:
         create_attachment(claim_id, attachment)

@@ -1,6 +1,9 @@
 """GraphQL query resolver implementations (WO-029)."""
 
+from __future__ import annotations
+
 from enum import Enum
+from typing import Any, Optional, List
 
 from django.db.models import Q, Subquery
 from insuree.models import Insuree
@@ -29,7 +32,7 @@ class AttachmentStatusEnum(Enum):
     WITHOUT = 2
 
 
-def resolve_insuree_name_by_chfid(info, **kwargs):
+def resolve_insuree_name_by_chfid(info: Any, **kwargs: Any) -> str:
     require_query_permission(info, "insuree_name_by_chfid")
     chf_id = kwargs.get("chfId")
     insuree = (
@@ -44,32 +47,34 @@ def resolve_insuree_name_by_chfid(info, **kwargs):
     return insuree_name
 
 
-def resolve_validate_claim_code(info, **kwargs):
+def resolve_validate_claim_code(info: Any, **kwargs: Any) -> bool:
     require_query_permission(info, "validate_claim_code")
     errors = check_unique_claim_code(code=kwargs["claim_code"])
     return False if errors else True
 
 
-def resolve_claim_job(info, uuid, **kwargs):
+def resolve_claim_job(info: Any, uuid: str, **kwargs: Any) -> Any:
     require_query_permission(info, "claim_job")
     from claim.job_queue import get_job_by_uuid
 
     return get_job_by_uuid(uuid)
 
 
-def resolve_claim_jobs(info, **kwargs):
+def resolve_claim_jobs(info: Any, **kwargs: Any) -> Any:
     require_query_permission(info, "claim_jobs")
     from claim.models import ClaimJob
 
     return ClaimJob.get_queryset(ClaimJob.objects.all(), info)
 
 
-def resolve_claim(info, id=None, uuid=None, **kwargs):
+def resolve_claim(
+    info: Any, id: Optional[int] = None, uuid: Optional[str] = None, **kwargs: Any
+) -> Optional[Claim]:
     require_query_permission(info, "claim")
     return get_valid_claim(claim_id=id, claim_uuid=uuid)
 
 
-def resolve_claims(info, **kwargs):
+def resolve_claims(info: Any, **kwargs: Any) -> Any:
     require_query_permission(info, "claims")
     query = Claim.objects
     filters = []
@@ -142,17 +147,17 @@ def resolve_claims(info, **kwargs):
     return gql_optimizer.query(apply_claim_read_prefetches(query), info)
 
 
-def resolve_claim_attachments(info, **kwargs):
+def resolve_claim_attachments(info: Any, **kwargs: Any) -> Any:
     require_query_permission(info, "claim_attachments")
     return ClaimAttachment.objects.filter(*ClaimAttachment.filter_validity())
 
 
-def resolve_claim_officers(info, search=None, **kwargs):
+def resolve_claim_officers(info: Any, search: Optional[str] = None, **kwargs: Any) -> Any:
     require_query_permission(info, "claim_officers")
 
     from claim.apps import ClaimConfig
 
-    def _load_officer_pks():
+    def _load_officer_pks() -> List[Any]:
         qs = Officer.objects
         if search is not None:
             qs = qs.filter(
@@ -172,12 +177,12 @@ def resolve_claim_officers(info, search=None, **kwargs):
     return Officer.objects.filter(pk__in=pks)
 
 
-def resolve_claim_attachment_type(info, **kwargs):
+def resolve_claim_attachment_type(info: Any, **kwargs: Any) -> Any:
     require_query_permission(info, "claim_attachment_type")
 
     from claim.apps import ClaimConfig
 
-    def _load_attachment_type_pks():
+    def _load_attachment_type_pks() -> List[Any]:
         return list(
             ClaimAttachmentType.objects.filter(
                 *ClaimAttachmentType.filter_validity()
@@ -194,14 +199,14 @@ def resolve_claim_attachment_type(info, **kwargs):
     return ClaimAttachmentType.objects.filter(pk__in=pks)
 
 
-def resolve_fsp_from_claim(info, **kwargs):
+def resolve_fsp_from_claim(info: Any, **kwargs: Any) -> Any:
     require_query_permission(info, "fsp_from_claim")
     return get_insuree_health_facility_for_fsp(
         kwargs["insuree_code"], kwargs["date_claimed"]
     )
 
 
-def resolve_claim_with_same_diagnosis(info, **kwargs):
+def resolve_claim_with_same_diagnosis(info: Any, **kwargs: Any) -> Any:
     require_query_permission(info, "claim_with_same_diagnosis")
 
     qs = Claim.objects.filter(
@@ -213,7 +218,7 @@ def resolve_claim_with_same_diagnosis(info, **kwargs):
     return qs
 
 
-def resolve_claim_history(info, **kwargs):
+def resolve_claim_history(info: Any, **kwargs: Any) -> Any:
     claim_uuid = kwargs.get("claim_uuid")
 
     require_query_permission(info, "claim_history")
