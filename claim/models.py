@@ -39,7 +39,7 @@ class Feedback(core_models.VersionedModel):
         db_column="DrugPrescribed", blank=True, null=True
     )
     drug_received = models.BooleanField(db_column="DrugReceived", blank=True, null=True)
-    asessment = models.SmallIntegerField(db_column="Asessment", blank=True, null=True)
+    assessment = models.SmallIntegerField(db_column="Asessment", blank=True, null=True)
     # No FK in database (so value may not be an existing officer.id !)
     officer_id = models.IntegerField(db_column="CHFOfficerCode", blank=True, null=True)
     feedback_date = fields.DateTimeField(
@@ -50,6 +50,15 @@ class Feedback(core_models.VersionedModel):
     class Meta:
         managed = True
         db_table = "tblFeedback"
+
+    @property
+    def asessment(self):
+        """Deprecated alias for legacy callers; maps to ``assessment``."""
+        return self.assessment
+
+    @asessment.setter
+    def asessment(self, value):
+        self.assessment = value
 
     @classmethod
     def get_queryset(cls, queryset, user):

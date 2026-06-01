@@ -12,6 +12,7 @@ from django.conf import settings
 from django.core.exceptions import ValidationError, PermissionDenied
 from django.utils.translation import gettext as _
 from graphene import InputObjectType
+from claim.feedback_input import normalize_feedback_input
 from claim.gql_authorization import (
     require_authenticated_mutation_user,
     require_mutation_permission,
@@ -156,8 +157,13 @@ class FeedbackInputType(InputObjectType):
     payment_asked = graphene.Boolean(required=False)
     drug_prescribed = graphene.Boolean(required=False)
     drug_received = graphene.Boolean(required=False)
+    assessment = SmallInt(
+        required=False,
+        description="Officer assessment score for the feedback.",
+    )
     asessment = SmallInt(
-        required=False, description="Be careful, this field name has a typo"
+        required=False,
+        description="Deprecated typo alias; use assessment instead.",
     )
     officer_id = graphene.Int(required=False)
     feedback_date = graphene.DateTime(required=False)
@@ -757,7 +763,7 @@ class DeliverClaimFeedbackMutation(OpenIMISMutation):
             if prev_feedback:
                 prev_feedback.claim_id = prev_claim_id
                 prev_feedback.save()
-            feedback = data["feedback"]
+            feedback = normalize_feedback_input(data["feedback"])
             from core.utils import TimeUtils
 
             feedback["validity_from"] = TimeUtils.now()

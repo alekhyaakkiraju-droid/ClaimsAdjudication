@@ -181,8 +181,15 @@ class ClaimAttachmentTypeGQLType(DjangoObjectType):
 
 
 class FeedbackGQLType(DjangoObjectType):
+    asessment = graphene.Int(
+        description="Deprecated typo alias; use assessment instead."
+    )
+
     class Meta:
         model = Feedback
+
+    def resolve_asessment(self, info):
+        return self.assessment
 
 
 class ClaimItemGQLType(DjangoObjectType):
