@@ -173,8 +173,8 @@ class ReportQueryCountTest(TestCase):
             Claim.objects.filter(*Claim.filter_validity())
         ).get(id=claim.id)
         with self.assertNumQueries(0):
-            data_items = [i for i in loaded.items.all()]
-            data_services = [s for s in loaded.services.all()]
+            data_items = list(loaded.items.all())
+            data_services = list(loaded.services.all())
             _ = loaded.icd.code
         self.assertEqual(len(data_items), 1)
         self.assertEqual(len(data_services), 1)

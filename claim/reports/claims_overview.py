@@ -11,7 +11,7 @@ from claim.models import Claim, ClaimItem, ClaimService
 
 import logging
 
-from claim.reports.queryset import claim_detail_report_queryset
+from claim.reports.queryset import filtered_detail_report_claims
 from claim.reports.template_loader import load_report_template
 
 logger = logging.getLogger(__name__)
@@ -221,11 +221,7 @@ def claims_overview_query(
     # An easy way would be to make a set of claim codes - during the for loop, check if the code is in the set:
     # if it's not in the set -> process the claim and add its code to the set
     # if it's already in the set -> continue
-    claim_queryset = claim_detail_report_queryset(
-        Claim.objects.filter(claim_filters)
-        .distinct("date_claimed", "insuree__chf_id", "code")
-        .order_by("date_claimed", "insuree__chf_id", "code")
-    )
+    claim_queryset = filtered_detail_report_claims(claim_filters)
 
     total_claimed = Decimal(0.0)
     total_approved = Decimal(0.0)

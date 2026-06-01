@@ -25,17 +25,31 @@ def _valid_services_queryset():
     )
 
 
+def _items_services_prefetches():
+    return (
+        Prefetch("items", queryset=_valid_items_queryset()),
+        Prefetch("services", queryset=_valid_services_queryset()),
+    )
+
+
+_DETAIL_SELECT_RELATED = ("health_facility", "insuree", "admin")
+
+
 def claim_detail_report_queryset(queryset=None):
     """Eager-load relations used by claims_overview and claim_history reports."""
     if queryset is None:
         queryset = Claim.objects
-    return queryset.select_related(
-        "health_facility",
-        "insuree",
-        "admin",
-    ).prefetch_related(
-        Prefetch("items", queryset=_valid_items_queryset()),
-        Prefetch("services", queryset=_valid_services_queryset()),
+    return queryset.select_related(*_DETAIL_SELECT_RELATED).prefetch_related(
+        *_items_services_prefetches()
+    )
+
+
+def filtered_detail_report_claims(claim_filters):
+    """Distinct claim rows for overview/history reports with shared eager loading."""
+    return claim_detail_report_queryset(
+        Claim.objects.filter(claim_filters)
+        .distinct("date_claimed", "insuree__chf_id", "code")
+        .order_by("date_claimed", "insuree__chf_id", "code")
     )
 
 
@@ -43,16 +57,7 @@ def claim_operational_indicators_queryset(queryset=None):
     """Eager-load items/services for primary operational indicators aggregation."""
     if queryset is None:
         queryset = Claim.objects
-    return queryset.prefetch_related(
-        Prefetch(
-            "items",
-            queryset=ClaimItem.objects.filter(*ClaimItem.filter_validity()),
-        ),
-        Prefetch(
-            "services",
-            queryset=ClaimService.objects.filter(*ClaimService.filter_validity()),
-        ),
-    )
+    return queryset.prefetch_related(*_items_services_prefetches())
 
 
 def claim_print_report_queryset(queryset=None):
@@ -60,9 +65,7 @@ def claim_print_report_queryset(queryset=None):
     if queryset is None:
         queryset = Claim.objects
     return queryset.select_related(
-        "health_facility",
-        "insuree",
-        "admin",
+        *_DETAIL_SELECT_RELATED,
         "icd",
         "icd_1",
         "icd_2",
@@ -70,10 +73,7 @@ def claim_print_report_queryset(queryset=None):
         "icd_4",
         "refer_from",
         "refer_to",
-    ).prefetch_related(
-        Prefetch("items", queryset=_valid_items_queryset()),
-        Prefetch("services", queryset=_valid_services_queryset()),
-    )
+    ).prefetch_related(*_items_services_prefetches())
 
 
 def claim_has_detail_report_prefetch(claim: Claim) -> bool:
