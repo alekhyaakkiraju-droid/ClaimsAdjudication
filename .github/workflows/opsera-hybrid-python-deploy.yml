@@ -1,0 +1,146 @@
+# Opsera hybrid deploy — triggered by Opsera Job Engine
+# Use case PY-02: Docker build + AWS ECS or Azure Web App deploy
+# Docs: docs/opsera/blueprints/py-02-container-deploy.md
+
+name: Opsera Hybrid Python Deploy
+
+on:
+  workflow_dispatch:
+    inputs:
+      cloud_target:
+        description: Cloud provider
+        required: true
+        type: choice
+        options:
+          - aws
+          - azure
+      environment:
+        description: Target environment
+        required: true
+        type: choice
+        options:
+          - dev
+          - staging
+          - prod
+      image_tag:
+        description: Docker image tag (default git SHA)
+        required: false
+        default: ""
+      dry_run:
+        description: Build and scan only; skip cloud deploy
+        required: false
+        default: true
+        type: boolean
+
+env:
+  IMAGE_NAME: claim-backend-demo
+
+jobs:
+  deploy:
+    name: Deploy (${{ inputs.cloud_target }} / ${{ inputs.environment }})
+    runs-on: ubuntu-24.04
+    permissions:
+      contents: read
+      id-token: write
+
+    steps:
+      - uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4
+
+      - name: Resolve image tag
+        id: tag
+        env:
+          INPUT_TAG: ${{ inputs.image_tag }}
+        run: |
+          if [ -n "${INPUT_TAG}" ]; then
+            echo "value=${INPUT_TAG}" >> "$GITHUB_OUTPUT"
+          else
+            echo "value=${GITHUB_SHA::12}" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Write demo Dockerfile
+        run: |
+          cat > Dockerfile.opsera-demo <<'EOF'
+          FROM python:3.11-slim
+          WORKDIR /app
+          COPY pyproject.toml README.md ./
+          COPY claim ./claim
+          RUN pip install --no-cache-dir .
+          RUN useradd -m appuser && chown -R appuser:appuser /app
+          USER appuser
+          EXPOSE 8080
+          CMD ["python", "-c", "import claim; print('openimis-be-claim demo ok'); import http.server; http.server.test(HandlerClass=http.server.SimpleHTTPRequestHandler, port=8080)"]
+          EOF
+
+      - name: Build Docker image
+        run: |
+          docker build -f Dockerfile.opsera-demo \
+            -t "${IMAGE_NAME}:${{ steps.tag.outputs.value }}" .
+
+      - name: Dry run — skip cloud deploy
+        if: inputs.dry_run == true
+        run: |
+          echo "Dry run: image ${IMAGE_NAME}:${{ steps.tag.outputs.value }} built locally"
+          docker images "${IMAGE_NAME}"
+
+      # ── AWS ECS path ──
+      - name: Configure AWS credentials
+        if: inputs.dry_run == false && inputs.cloud_target == 'aws'
+        uses: aws-actions/configure-aws-credentials@ececac1a45f3b08a944d9926670310a8250105a # v4
+        with:
+          role-to-assume: ${{ secrets.AWS_OPSERA_DEPLOY_ROLE_ARN }}
+          aws-region: ${{ secrets.AWS_REGION || 'us-east-1' }}
+
+      - name: Login to Amazon ECR
+        if: inputs.dry_run == false && inputs.cloud_target == 'aws'
+        id: ecr
+        uses: aws-actions/amazon-ecr-login@062b989b287c7fcbd8eb95344b1f875a2e2d2afd # v2
+
+      - name: Push to ECR and update ECS
+        if: inputs.dry_run == false && inputs.cloud_target == 'aws'
+        env:
+          ECR_REGISTRY: ${{ steps.ecr.outputs.registry }}
+          ECR_REPOSITORY: ${{ secrets.AWS_ECR_REPOSITORY }}
+          ECS_CLUSTER: ${{ secrets.AWS_ECS_CLUSTER }}
+          ECS_SERVICE: ${{ secrets.AWS_ECS_SERVICE }}
+          IMAGE_TAG: ${{ steps.tag.outputs.value }}
+        run: |
+          FULL_IMAGE="${ECR_REGISTRY}/${ECR_REPOSITORY}:${IMAGE_TAG}"
+          docker tag "${IMAGE_NAME}:${IMAGE_TAG}" "${FULL_IMAGE}"
+          docker push "${FULL_IMAGE}"
+          aws ecs update-service \
+            --cluster "${ECS_CLUSTER}" \
+            --service "${ECS_SERVICE}" \
+            --force-new-deployment
+
+      # ── Azure Web App path ──
+      - name: Login to Azure
+        if: inputs.dry_run == false && inputs.cloud_target == 'azure'
+        uses: azure/login@3b5728296b0b148a93c35f2950c9d0c4b9f4a0d5 # v2
+        with:
+          client-id: ${{ secrets.AZURE_CLIENT_ID }}
+          tenant-id: ${{ secrets.AZURE_TENANT_ID }}
+          subscription-id: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
+
+      - name: Push to ACR and update Web App
+        if: inputs.dry_run == false && inputs.cloud_target == 'azure'
+        env:
+          ACR_NAME: ${{ secrets.AZURE_ACR_NAME }}
+          WEBAPP_NAME: ${{ secrets.AZURE_WEBAPP_NAME }}
+          IMAGE_TAG: ${{ steps.tag.outputs.value }}
+        run: |
+          az acr login --name "${ACR_NAME}"
+          FULL_IMAGE="${ACR_NAME}.azurecr.io/${IMAGE_NAME}:${IMAGE_TAG}"
+          docker tag "${IMAGE_NAME}:${IMAGE_TAG}" "${FULL_IMAGE}"
+          docker push "${FULL_IMAGE}"
+          az webapp config container set \
+            --name "${WEBAPP_NAME}" \
+            --resource-group "${{ secrets.AZURE_RESOURCE_GROUP }}" \
+            --docker-custom-image-name "${FULL_IMAGE}"
+
+      - name: Opsera deploy summary
+        run: |
+          echo "## Opsera PY-02 Deploy Summary" >> "$GITHUB_STEP_SUMMARY"
+          echo "- Cloud: **${{ inputs.cloud_target }}**" >> "$GITHUB_STEP_SUMMARY"
+          echo "- Environment: **${{ inputs.environment }}**" >> "$GITHUB_STEP_SUMMARY"
+          echo "- Image tag: \`${{ steps.tag.outputs.value }}\`" >> "$GITHUB_STEP_SUMMARY"
+          echo "- Dry run: **${{ inputs.dry_run }}**" >> "$GITHUB_STEP_SUMMARY"
