@@ -1,0 +1,55 @@
+# Reference: Java Spring Boot pipeline for Opsera matrix (JAVA-01)
+# Copy to a Java sample repo — not executed from this Python module repo.
+
+name: Opsera Hybrid Java CI Deploy
+
+on:
+  workflow_dispatch:
+    inputs:
+      environment:
+        description: dev, staging, prod
+        required: true
+        default: dev
+        type: choice
+        options: [dev, staging, prod]
+      cloud_target:
+        description: aws or azure
+        required: true
+        type: choice
+        options: [aws, azure]
+      dry_run:
+        description: Skip deploy
+        default: true
+        type: boolean
+
+jobs:
+  java-ci-deploy:
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: "17"
+          cache: maven
+
+      - name: Build and test
+        run: mvn -B verify
+
+      - name: Package JAR
+        run: mvn -B package -DskipTests
+
+      # Opsera orchestrates Checkmarx + qTest between CI and deploy steps
+
+      - name: Deploy to AWS Elastic Beanstalk
+        if: inputs.dry_run == false && inputs.cloud_target == 'aws'
+        run: |
+          echo "Deploy target.jar to EB environment ${{ inputs.environment }}"
+          # eb deploy or aws elasticbeanstalk update-environment
+
+      - name: Deploy to Azure App Service
+        if: inputs.dry_run == false && inputs.cloud_target == 'azure'
+        run: |
+          echo "Deploy to Azure App Service slot ${{ inputs.environment }}"
+          # az webapp deploy --src-path target/*.jar
