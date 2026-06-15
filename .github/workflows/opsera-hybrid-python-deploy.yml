@@ -64,6 +64,7 @@ jobs:
           WORKDIR /app
           COPY pyproject.toml README.md ./
           COPY claim ./claim
+          COPY locale ./locale
           RUN pip install --no-cache-dir .
           RUN useradd -m appuser && chown -R appuser:appuser /app
           USER appuser
