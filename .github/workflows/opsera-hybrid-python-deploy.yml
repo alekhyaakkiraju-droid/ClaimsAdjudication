@@ -85,7 +85,7 @@ jobs:
       # ── AWS ECS path ──
       - name: Configure AWS credentials
         if: inputs.dry_run == false && inputs.cloud_target == 'aws'
-        uses: aws-actions/configure-aws-credentials@ececac1a45f3b08a944d9926670310a8250105a # v4
+        uses: aws-actions/configure-aws-credentials@5579c002bb4778aa43395ef1df492868a9a1c83f # v4.0.2
         with:
           role-to-assume: ${{ secrets.AWS_OPSERA_DEPLOY_ROLE_ARN }}
           aws-region: ${{ secrets.AWS_REGION || 'us-east-1' }}
@@ -93,7 +93,7 @@ jobs:
       - name: Login to Amazon ECR
         if: inputs.dry_run == false && inputs.cloud_target == 'aws'
         id: ecr
-        uses: aws-actions/amazon-ecr-login@062b989b287c7fcbd8eb95344b1f875a2e2d2afd # v2
+        uses: aws-actions/amazon-ecr-login@4625ce35226a7557230889aae2f52eb50ec3dcda # v2.0.1
 
       - name: Push to ECR and update ECS
         if: inputs.dry_run == false && inputs.cloud_target == 'aws'
@@ -115,7 +115,7 @@ jobs:
       # ── Azure Web App path ──
       - name: Login to Azure
         if: inputs.dry_run == false && inputs.cloud_target == 'azure'
-        uses: azure/login@3b5728296b0b148a93c35f2950c9d0c4b9f4a0d5 # v2
+        uses: azure/login@1384c340ab2dda50fed2bee3041d1d87018aa5e8 # v2
         with:
           client-id: ${{ secrets.AZURE_CLIENT_ID }}
           tenant-id: ${{ secrets.AZURE_TENANT_ID }}
@@ -126,6 +126,7 @@ jobs:
         env:
           ACR_NAME: ${{ secrets.AZURE_ACR_NAME }}
           WEBAPP_NAME: ${{ secrets.AZURE_WEBAPP_NAME }}
+          AZURE_RESOURCE_GROUP: ${{ secrets.AZURE_RESOURCE_GROUP }}
           IMAGE_TAG: ${{ steps.tag.outputs.value }}
         run: |
           az acr login --name "${ACR_NAME}"
@@ -134,7 +135,7 @@ jobs:
           docker push "${FULL_IMAGE}"
           az webapp config container set \
             --name "${WEBAPP_NAME}" \
-            --resource-group "${{ secrets.AZURE_RESOURCE_GROUP }}" \
+            --resource-group "${AZURE_RESOURCE_GROUP}" \
             --docker-custom-image-name "${FULL_IMAGE}"
 
       - name: Opsera deploy summary
